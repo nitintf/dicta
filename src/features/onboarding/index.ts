@@ -1,0 +1,6 @@
+export { OnboardingPage } from './onboarding'
+export { PermissionCard } from './components/permission-card'
+export type { PermissionCardProps } from './types'
+export { useOnboardingStore } from './store'
+export { useOnboarding } from './hooks/use-onboarding'
+export type { OnboardingStep } from './store'

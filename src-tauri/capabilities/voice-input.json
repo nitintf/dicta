@@ -1,0 +1,16 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "voice-input",
+  "description": "Capability for the voice input window",
+  "windows": ["voice-input"],
+  "permissions": [
+    "core:default",
+    "core:event:allow-emit",
+    "core:event:allow-listen",
+    "core:window:allow-hide",
+    "core:window:allow-close",
+    "mic-recorder:default",
+    "macos-permissions:default",
+    "clipboard-manager:default"
+  ]
+}

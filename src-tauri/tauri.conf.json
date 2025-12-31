@@ -1,0 +1,74 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Dicta",
+  "version": "0.1.0",
+  "identifier": "com.dicta.app",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "macOSPrivateApi": true,
+    "windows": [
+      {
+        "title": "Dicta",
+        "label": "main",
+        "width": 1000,
+        "height": 700,
+        "minWidth": 900,
+        "minHeight": 600,
+        "resizable": true,
+        "titleBarStyle": "Overlay",
+        "url": "/",
+        "decorations": true,
+        "transparent": false,
+        "hiddenTitle": true,
+        "trafficLightPosition": {
+          "x": 18,
+          "y": 23
+        }
+      },
+      {
+        "label": "voice-input",
+        "title": "Voice Input",
+        "url": "voice-input.html",
+        "width": 150,
+        "height": 50,
+        "visible": false,
+        "hiddenTitle": true,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "plugins": {
+    "updater": {
+      "dialog": true,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEFBQzg0N0RDODVDRjJBQkMKUldTOEtzK0YzRWZJcXNLQ214MlBqRlRGR1pmaTlRVDQ3ZFhpNEVzRnNFdVNLUVZyaXBtWEdEQmEK",
+      "endpoints": [
+        "https://cdn.dicta.app/update/dicta/dicta/{{target}}-{{arch}}/{{current_version}}"
+      ]
+    },
+    "webview": {
+      "windows": ["main", "voice-input"],
+      "permissions": ["allow-popups", "allow-modals"]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}
