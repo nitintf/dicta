@@ -1,3 +1,5 @@
+import OpenAI from 'openai'
+
 import type {
   TranscriptionConfig,
   TranscriptionResult,
@@ -5,30 +7,46 @@ import type {
 } from '../types'
 
 export class LMStudioProvider implements TranscriptionProviderInterface {
+  private getClient(baseUrl: string): OpenAI {
+    return new OpenAI({
+      apiKey: 'lm-studio', // LM Studio doesn't require an API key
+      baseURL: `${baseUrl}/v1`,
+      dangerouslyAllowBrowser: true,
+    })
+  }
+
   async transcribe(
     audioBlob: Blob,
     config: TranscriptionConfig
   ): Promise<TranscriptionResult> {
     const baseUrl = config.baseUrl || 'http://localhost:1234'
-    const formData = new FormData()
-    formData.append('file', audioBlob, 'audio.wav')
-    formData.append('model', config.model || 'whisper')
+    const client = this.getClient(baseUrl)
 
-    const response = await fetch(`${baseUrl}/v1/audio/transcriptions`, {
-      method: 'POST',
-      body: formData,
-    })
+    // Convert Blob to File
+    const audioFile = new File([audioBlob], 'audio.wav', { type: 'audio/wav' })
 
-    if (!response.ok) {
+    try {
+      const transcription = await client.audio.transcriptions.create({
+        file: audioFile,
+        model: config.model || 'whisper',
+        language: config.language,
+        temperature: config.temperature,
+        response_format: 'verbose_json',
+      })
+
+      return {
+        text: transcription.text || '',
+        language: transcription.language,
+        segments: transcription.segments?.map(seg => ({
+          start: seg.start,
+          end: seg.end,
+          text: seg.text,
+        })),
+      }
+    } catch (error) {
       throw new Error(
-        `LM Studio transcription failed: ${response.statusText}. Make sure LM Studio is running with the API server enabled.`
+        `LM Studio transcription failed: ${error instanceof Error ? error.message : 'Unknown error'}. Make sure LM Studio is running with the API server enabled.`
       )
-    }
-
-    const data = await response.json()
-    return {
-      text: data.text || '',
-      language: data.language,
     }
   }
 
@@ -37,7 +55,7 @@ export class LMStudioProvider implements TranscriptionProviderInterface {
       const baseUrl = config.baseUrl || 'http://localhost:1234'
       const response = await fetch(`${baseUrl}/v1/models`, {
         method: 'GET',
-        signal: AbortSignal.timeout(2000), // 2 second timeout
+        signal: AbortSignal.timeout(2000),
       })
       return response.ok
     } catch {

@@ -10,11 +10,17 @@ export interface Transcription {
 
 export interface TranscriptionsState {
   transcriptions: Transcription[]
+  initialized: boolean
+  initialize: () => Promise<void>
   addTranscription: (
     transcription: Omit<Transcription, 'id' | 'wordCount'>
-  ) => Transcription
-  deleteTranscription: (id: string) => void
-  clearAll: () => void
+  ) => Promise<Transcription>
+  updateTranscription: (
+    id: string,
+    updates: Partial<Omit<Transcription, 'id'>>
+  ) => Promise<void>
+  deleteTranscription: (id: string) => Promise<void>
+  clearAll: () => Promise<void>
   getStats: () => {
     totalTranscriptions: number
     totalWords: number

@@ -1,13 +1,33 @@
 use tauri::menu::{MenuBuilder, MenuItem, PredefinedMenuItem, SubmenuBuilder};
+use tauri::tray::TrayIconBuilder;
 use tauri::{Emitter, Listener, Manager};
 use tauri_plugin_global_shortcut::{Code, Modifiers, Shortcut, ShortcutState};
 use tauri_plugin_store::StoreExt;
 
 #[cfg(target_os = "macos")]
+use tauri::ActivationPolicy;
+
+#[cfg(target_os = "macos")]
 use tauri_nspanel::ManagerExt;
 use window::WebviewWindowExt;
 
+mod clipboard_utils;
+mod models;
+mod transcription;
 mod window;
+
+use models::{
+    delete_whisper_model, download_whisper_model, get_all_models, get_model_path,
+    list_available_models, WhisperManager,
+};
+use transcription::{
+    check_whisper_available, get_whisper_model_status, start_whisper_model, stop_whisper_model,
+    transcribe_with_apple_speech, transcribe_with_google, transcribe_with_local_whisper,
+    transcribe_with_openai,
+};
+
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 pub const SPOTLIGHT_LABEL: &str = "voice-input";
 
@@ -92,11 +112,22 @@ pub fn run() {
     #[cfg(debug_assertions)] // only enable instrumentation in development builds
     let devtools = tauri_plugin_devtools::init();
 
+    // Initialize WhisperManager state for persistent model loading
+    let whisper_manager = Arc::new(Mutex::new(WhisperManager::new()));
+
     let mut builder = tauri::Builder::default()
+        .manage(whisper_manager)
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_os::init())
-        .plugin(tauri_plugin_stronghold::Builder::new(|_pass| todo!()).build())
+        .plugin(tauri_plugin_shell::init())
+        .plugin(
+            tauri_plugin_stronghold::Builder::new(|_pass| {
+                // Simple password derivation for now
+                vec![0u8; 32]
+            })
+            .build(),
+        )
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_macos_permissions::init())
@@ -115,7 +146,156 @@ pub fn run() {
 
     #[cfg(target_os = "macos")]
     let setup_fn = move |app: &mut tauri::App| {
+        // Hide dock icon - app will only appear in menu bar (must be first)
+        app.set_activation_policy(ActivationPolicy::Accessory);
+
         let handle = app.app_handle();
+
+        // Get whisper manager for cleanup on quit
+        let whisper_state = app.state::<Arc<Mutex<WhisperManager>>>();
+        let whisper_cleanup = whisper_state.inner().clone();
+
+        // Create system tray menu
+        let shortcuts_submenu = SubmenuBuilder::new(app, "Shortcuts")
+            .item(&MenuItem::with_id(
+                app,
+                "microphone",
+                "Microphone",
+                true,
+                None::<&str>,
+            )?)
+            .build()?;
+
+        let tray_menu = MenuBuilder::new(app)
+            .item(&MenuItem::with_id(app, "home", "Home", true, None::<&str>)?)
+            .item(&MenuItem::with_id(
+                app,
+                "check-updates",
+                "Check for updates...",
+                true,
+                None::<&str>,
+            )?)
+            .item(&MenuItem::with_id(
+                app,
+                "paste-last",
+                "Paste last transcript",
+                true,
+                Some("CmdOrCtrl+Shift+V"),
+            )?)
+            .separator()
+            .item(&shortcuts_submenu)
+            .separator()
+            .item(&MenuItem::with_id(
+                app,
+                "settings-tray",
+                "Settings",
+                true,
+                None::<&str>,
+            )?)
+            .separator()
+            .item(&MenuItem::with_id(
+                app,
+                "help-center",
+                "Help Center",
+                true,
+                None::<&str>,
+            )?)
+            .item(&MenuItem::with_id(
+                app,
+                "talk-to-support",
+                "Talk to support",
+                true,
+                Some("CmdOrCtrl+/"),
+            )?)
+            .item(&MenuItem::with_id(
+                app,
+                "general-feedback",
+                "General feedback",
+                true,
+                None::<&str>,
+            )?)
+            .separator()
+            .item(&MenuItem::with_id(
+                app,
+                "quit",
+                "Quit Dicta",
+                true,
+                Some("CmdOrCtrl+Q"),
+            )?)
+            .build()?;
+
+        // Create tray icon with menu
+        let _tray = TrayIconBuilder::new()
+            .menu(&tray_menu)
+            .icon(app.default_window_icon().unwrap().clone())
+            .on_menu_event(move |app, event| {
+                match event.id().as_ref() {
+                    "home" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                    "check-updates" => {
+                        // TODO: Implement update check
+                        println!("Check for updates clicked");
+                    }
+                    "paste-last" => {
+                        // TODO: Implement paste last transcript
+                        println!("Paste last transcript clicked");
+                    }
+                    "microphone" => {
+                        // TODO: Open microphone settings
+                        println!("Microphone settings clicked");
+                    }
+                    "settings-tray" => {
+                        // TODO: Open settings window/page
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                            // TODO: Navigate to settings page
+                        }
+                    }
+                    "help-center" => {
+                        // TODO: Open help center URL
+                        println!("Help center clicked");
+                    }
+                    "talk-to-support" => {
+                        // TODO: Open support URL
+                        println!("Talk to support clicked");
+                    }
+                    "general-feedback" => {
+                        // TODO: Open feedback URL
+                        println!("General feedback clicked");
+                    }
+                    "quit" => {
+                        // Cleanup whisper model before exit
+                        let whisper = whisper_cleanup.clone();
+                        let runtime = tokio::runtime::Runtime::new().unwrap();
+                        runtime.block_on(async {
+                            let mut manager = whisper.lock().await;
+                            manager.unload_model();
+                            println!("Whisper model stopped on app exit");
+                        });
+                        app.exit(0);
+                    }
+                    _ => {}
+                }
+            })
+            .build(app)?;
+
+        // Prevent app from quitting when main window is closed
+        if let Some(window) = app.get_webview_window("main") {
+            let window_clone = window.clone();
+            window.on_window_event(move |event| {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    // Prevent default close behavior
+                    api.prevent_close();
+                    // Hide the window instead
+                    let _ = window_clone.hide();
+                }
+            });
+        }
 
         let app_menu = SubmenuBuilder::new(app, "Dicta")
             .item(&MenuItem::with_id(
@@ -139,6 +319,17 @@ pub fn run() {
             .item(&PredefinedMenuItem::show_all(app, None)?)
             .separator()
             .item(&PredefinedMenuItem::quit(app, None)?)
+            .build()?;
+
+        // Create Edit menu with native copy/paste
+        let edit_menu = SubmenuBuilder::new(app, "Edit")
+            .item(&PredefinedMenuItem::undo(app, None)?)
+            .item(&PredefinedMenuItem::redo(app, None)?)
+            .separator()
+            .item(&PredefinedMenuItem::cut(app, None)?)
+            .item(&PredefinedMenuItem::copy(app, None)?)
+            .item(&PredefinedMenuItem::paste(app, None)?)
+            .item(&PredefinedMenuItem::select_all(app, None)?)
             .build()?;
 
         // Create View menu
@@ -170,6 +361,7 @@ pub fn run() {
         // Build the complete menu
         let menu = MenuBuilder::new(app)
             .item(&app_menu)
+            .item(&edit_menu)
             .item(&view_menu)
             .item(&window_menu)
             .item(&updates_menu)
@@ -236,8 +428,39 @@ pub fn run() {
         Ok(())
     };
 
-    builder
+    let app = builder
+        .invoke_handler(tauri::generate_handler![
+            transcribe_with_apple_speech,
+            transcribe_with_openai,
+            transcribe_with_google,
+            transcribe_with_local_whisper,
+            check_whisper_available,
+            clipboard_utils::copy_and_paste,
+            get_all_models,
+            list_available_models,
+            download_whisper_model,
+            delete_whisper_model,
+            get_model_path,
+            start_whisper_model,
+            stop_whisper_model,
+            get_whisper_model_status,
+        ])
         .setup(setup_fn)
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    // Get whisper manager for cleanup on exit
+    let whisper_manager = app.state::<Arc<Mutex<WhisperManager>>>().inner().clone();
+
+    app.run(move |_app_handle, event| {
+        if let tauri::RunEvent::ExitRequested { .. } = event {
+            // Cleanup whisper model before app exits
+            let runtime = tokio::runtime::Runtime::new().unwrap();
+            runtime.block_on(async {
+                let mut manager = whisper_manager.lock().await;
+                manager.unload_model();
+                println!("Whisper model stopped on app exit");
+            });
+        }
+    });
 }

@@ -38,6 +38,15 @@ tauri-plugin-macos-permissions = "2.3.0"
 tauri-plugin-devtools = "2.0.0"
 tauri-plugin-mic-recorder = "2"
 tauri-plugin-autostart = "2"
+tauri-plugin-shell = "2.3.3"
+reqwest = { version = "0.13.1", features = ["multipart", "json", "stream"] }
+base64 = "0.22.1"
+uuid = { version = "1.19.0", features = ["v4"] }
+futures-util = "0.3.31"
+tokio = { version = "1.48.0", features = ["fs"] }
+bytes = "1.11.0"
+whisper-rs = "0.15.1"
+hound = "3.5"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 cocoa = "0.26"

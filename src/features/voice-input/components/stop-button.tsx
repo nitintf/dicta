@@ -18,11 +18,13 @@ export function StopButton({
     <Button
       onClick={onClick}
       size="icon"
-      className={cn('relative h-5 w-5 shrink-0 rounded-full text-white', {
-        'bg-neutral-500 hover:bg-neutral-600 cursor-wait': isProcessing,
-        'bg-rose-400 hover:bg-rose-300': !isProcessing && isRecording,
-        'opacity-40 cursor-not-allowed': !isRecording || isProcessing,
-      })}
+      className={cn(
+        'relative h-5 w-5 shrink-0 rounded-full text-white bg-rose-400 hover:bg-rose-300',
+        {
+          'bg-neutral-500 hover:bg-neutral-600 cursor-wait': isProcessing,
+          'opacity-40 cursor-not-allowed': !isRecording || isProcessing,
+        }
+      )}
       aria-label={isProcessing ? 'Processing' : 'Finish and Paste'}
       disabled={!isRecording || isProcessing}
     >

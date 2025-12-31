@@ -1,61 +1,54 @@
+import { invoke } from '@tauri-apps/api/core'
+
 import type {
   TranscriptionConfig,
   TranscriptionResult,
   TranscriptionProviderInterface,
 } from '../types'
 
+interface GoogleTranscriptionResponse {
+  text: string
+  language?: string
+  segments?: Array<{
+    start: number
+    end: number
+    text: string
+  }>
+}
+
 export class GoogleProvider implements TranscriptionProviderInterface {
   async transcribe(
     audioBlob: Blob,
     config: TranscriptionConfig
   ): Promise<TranscriptionResult> {
-    // Convert blob to base64
-    const base64Audio = await this.blobToBase64(audioBlob)
+    if (!config.apiKey) {
+      throw new Error('Google Cloud API key is required')
+    }
 
-    const response = await fetch(
-      `https://speech.googleapis.com/v1/speech:recognize?key=${config.apiKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          config: {
-            encoding: 'WEBM_OPUS',
-            sampleRateHertz: 48000,
-            languageCode: config.language || 'en-US',
-            model: config.model || 'default',
-          },
-          audio: {
-            content: base64Audio.split(',')[1], // Remove data:audio/wav;base64, prefix
-          },
-        }),
+    try {
+      // Convert Blob to ArrayBuffer and then to Array
+      const arrayBuffer = await audioBlob.arrayBuffer()
+      const audioData = Array.from(new Uint8Array(arrayBuffer))
+
+      const response = await invoke<GoogleTranscriptionResponse>(
+        'transcribe_with_google',
+        {
+          audioData,
+          apiKey: config.apiKey,
+          language: config.language,
+        }
+      )
+
+      return {
+        text: response.text || '',
+        language: response.language,
+        segments: response.segments,
       }
-    )
-
-    if (!response.ok) {
-      const error = await response
-        .json()
-        .catch(() => ({ error: 'Unknown error' }))
-      throw new Error(`Google transcription failed: ${JSON.stringify(error)}`)
+    } catch (error) {
+      throw new Error(
+        `Google transcription failed: ${error instanceof Error ? error.message : String(error)}`
+      )
     }
-
-    const data = await response.json()
-    const text = data.results?.[0]?.alternatives?.[0]?.transcript || ''
-
-    return {
-      text,
-      language: config.language,
-    }
-  }
-
-  private async blobToBase64(blob: Blob): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onloadend = () => resolve(reader.result as string)
-      reader.onerror = reject
-      reader.readAsDataURL(blob)
-    })
   }
 
   async isAvailable(config: TranscriptionConfig): Promise<boolean> {

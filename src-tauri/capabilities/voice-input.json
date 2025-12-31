@@ -10,8 +10,10 @@
     "core:window:allow-hide",
     "core:window:allow-close",
     "mic-recorder:default",
+    "store:default",
     "macos-permissions:default",
     "clipboard-manager:allow-write-text",
-    "clipboard-manager:allow-read-text"
+    "clipboard-manager:allow-read-text",
+    "shell:allow-open"
   ]
 }

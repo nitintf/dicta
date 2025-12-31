@@ -1,11 +1,8 @@
 import {
+  AppleProvider,
   OpenAIProvider,
-  AnthropicProvider,
   GoogleProvider,
-  OllamaProvider,
-  LMStudioProvider,
-  DeepgramProvider,
-  AssemblyAIProvider,
+  LocalWhisperProvider,
 } from './providers'
 
 import type {
@@ -23,13 +20,10 @@ export class TranscriptionService {
 
   constructor() {
     // Register all providers
+    this.registerProvider('apple', new AppleProvider())
     this.registerProvider('openai', new OpenAIProvider())
-    this.registerProvider('anthropic', new AnthropicProvider())
     this.registerProvider('google', new GoogleProvider())
-    this.registerProvider('ollama', new OllamaProvider())
-    this.registerProvider('lm-studio', new LMStudioProvider())
-    this.registerProvider('deepgram', new DeepgramProvider())
-    this.registerProvider('assemblyai', new AssemblyAIProvider())
+    this.registerProvider('local-whisper', new LocalWhisperProvider())
   }
 
   /**

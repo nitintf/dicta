@@ -1,7 +1,9 @@
+import { invoke } from '@tauri-apps/api/core'
 import { emit } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { useModelsStore } from '@/features/models'
 import { useTranscriptionsStore } from '@/features/transcriptions'
 import { ensureMicPermission } from '@/lib/microphone-permissions'
 
@@ -9,6 +11,7 @@ import {
   createControllableRecorder,
   playAudioFeedback,
 } from '../services/audio-utils'
+import { transcriptionService } from '../services/transcription-service'
 
 export type FeedbackMessage =
   | 'cancelled'
@@ -31,6 +34,10 @@ export function useVoiceRecording() {
   const addTranscription = useTranscriptionsStore(
     state => state.addTranscription
   )
+  const updateTranscription = useTranscriptionsStore(
+    state => state.updateTranscription
+  )
+  const models = useModelsStore(state => state.models)
 
   const startRecording = useCallback(async () => {
     // Check and request permission if needed
@@ -132,7 +139,7 @@ export function useVoiceRecording() {
         mediaRecorderRef.current = null
       }
 
-      // Save audio without AI transcription
+      // Save audio and transcribe
       if (audioBlob) {
         try {
           // Calculate duration
@@ -140,16 +147,58 @@ export function useVoiceRecording() {
             ? (Date.now() - recordingStartTimeRef.current) / 1000
             : 0
 
-          // Save recording to store without transcription
-          addTranscription({
-            text: '[Recording saved - transcription pending]',
-            audioBlob,
-            duration,
-            timestamp: Date.now(),
-          })
+          const timestamp = Date.now()
 
-          // Show processing for a bit, then completed feedback
-          await new Promise(resolve => setTimeout(resolve, 800))
+          // Get selected model
+          const selectedModel = models.find(m => m.isSelected && m.isEnabled)
+          console.log('Selected model:', selectedModel)
+
+          // Perform transcription in background
+          if (selectedModel) {
+            try {
+              const result = await transcriptionService.transcribe(audioBlob, {
+                provider: selectedModel.provider,
+                model: selectedModel.id,
+                apiKey: selectedModel.apiKey,
+                language: 'en',
+              })
+
+              await addTranscription({
+                text: result.text,
+                audioBlob,
+                duration,
+                timestamp,
+              })
+
+              console.log('Transcription completed:', result.text)
+
+              // Copy to clipboard and paste at cursor
+              try {
+                await invoke('copy_and_paste', { text: result.text })
+                console.log('Text copied and pasted successfully')
+              } catch (pasteError) {
+                console.error('Failed to paste text:', pasteError)
+              }
+            } catch (transcriptionError) {
+              console.error('Transcription failed:', transcriptionError)
+              // Update with error message
+              await addTranscription({
+                text: `[Transcription failed: ${transcriptionError instanceof Error ? transcriptionError.message : 'Unknown error'}]`,
+                audioBlob,
+                duration,
+                timestamp,
+              })
+            }
+          } else {
+            // No model selected
+            await addTranscription({
+              text: '[No transcription model selected]',
+              audioBlob,
+              duration,
+              timestamp,
+            })
+          }
+
           setFeedbackMessage('completed')
           await new Promise(resolve => setTimeout(resolve, 1500))
         } catch (error) {
@@ -189,7 +238,7 @@ export function useVoiceRecording() {
       setFeedbackMessage(null)
       await hideWindow()
     }
-  }, [addTranscription, hideWindow])
+  }, [addTranscription, updateTranscription, models, hideWindow])
 
   const cancelRecording = useCallback(async () => {
     setIsRecording(false)

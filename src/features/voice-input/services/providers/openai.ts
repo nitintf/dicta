@@ -1,46 +1,55 @@
+import { invoke } from '@tauri-apps/api/core'
+
 import type {
   TranscriptionConfig,
   TranscriptionResult,
   TranscriptionProviderInterface,
 } from '../types'
 
+interface OpenAITranscriptionResponse {
+  text: string
+  language?: string
+  segments?: Array<{
+    start: number
+    end: number
+    text: string
+  }>
+}
+
 export class OpenAIProvider implements TranscriptionProviderInterface {
   async transcribe(
     audioBlob: Blob,
     config: TranscriptionConfig
   ): Promise<TranscriptionResult> {
-    const formData = new FormData()
-    formData.append('file', audioBlob, 'audio.wav')
-    formData.append('model', config.model || 'whisper-1')
-    if (config.language) {
-      formData.append('language', config.language)
-    }
-    if (config.temperature !== undefined) {
-      formData.append('temperature', config.temperature.toString())
+    if (!config.apiKey) {
+      throw new Error('OpenAI API key is required')
     }
 
-    const response = await fetch(
-      'https://api.openai.com/v1/audio/transcriptions',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${config.apiKey || ''}`,
-        },
-        body: formData,
+    try {
+      // Convert Blob to ArrayBuffer and then to Array
+      const arrayBuffer = await audioBlob.arrayBuffer()
+      const audioData = Array.from(new Uint8Array(arrayBuffer))
+
+      const response = await invoke<OpenAITranscriptionResponse>(
+        'transcribe_with_openai',
+        {
+          audioData,
+          apiKey: config.apiKey,
+          model: config.model || 'whisper-1',
+          language: config.language,
+          temperature: config.temperature,
+        }
+      )
+
+      return {
+        text: response.text || '',
+        language: response.language,
+        segments: response.segments,
       }
-    )
-
-    if (!response.ok) {
-      const error = await response
-        .json()
-        .catch(() => ({ error: 'Unknown error' }))
-      throw new Error(`OpenAI transcription failed: ${JSON.stringify(error)}`)
-    }
-
-    const data = await response.json()
-    return {
-      text: data.text || '',
-      language: data.language,
+    } catch (error) {
+      throw new Error(
+        `OpenAI transcription failed: ${error instanceof Error ? error.message : String(error)}`
+      )
     }
   }
 

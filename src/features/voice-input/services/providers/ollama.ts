@@ -1,3 +1,5 @@
+import OpenAI from 'openai'
+
 import type {
   TranscriptionConfig,
   TranscriptionResult,
@@ -5,37 +7,46 @@ import type {
 } from '../types'
 
 export class OllamaProvider implements TranscriptionProviderInterface {
+  private getClient(baseUrl: string): OpenAI {
+    return new OpenAI({
+      apiKey: 'ollama', // Ollama doesn't require an API key
+      baseURL: `${baseUrl}/v1`,
+      dangerouslyAllowBrowser: true,
+    })
+  }
+
   async transcribe(
     audioBlob: Blob,
     config: TranscriptionConfig
   ): Promise<TranscriptionResult> {
     const baseUrl = config.baseUrl || 'http://localhost:11434'
-    const model = config.model || 'whisper'
+    const client = this.getClient(baseUrl)
 
-    // Convert blob to base64
-    const base64Audio = await this.blobToBase64(audioBlob)
+    // Convert Blob to File
+    const audioFile = new File([audioBlob], 'audio.wav', { type: 'audio/wav' })
 
-    const response = await fetch(`${baseUrl}/api/generate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        prompt: `Transcribe this audio: ${base64Audio}`,
-        stream: false,
-      }),
-    })
+    try {
+      const transcription = await client.audio.transcriptions.create({
+        file: audioFile,
+        model: config.model || 'whisper',
+        language: config.language,
+        temperature: config.temperature,
+        response_format: 'verbose_json',
+      })
 
-    if (!response.ok) {
+      return {
+        text: transcription.text || '',
+        language: transcription.language,
+        segments: transcription.segments?.map(seg => ({
+          start: seg.start,
+          end: seg.end,
+          text: seg.text,
+        })),
+      }
+    } catch (error) {
       throw new Error(
-        `Ollama transcription failed: ${response.statusText}. Make sure Ollama is running and the model is installed.`
+        `Ollama transcription failed: ${error instanceof Error ? error.message : 'Unknown error'}. Make sure Ollama is running with OpenAI-compatible endpoint.`
       )
-    }
-
-    const data = await response.json()
-    return {
-      text: data.response || '',
     }
   }
 
@@ -44,20 +55,11 @@ export class OllamaProvider implements TranscriptionProviderInterface {
       const baseUrl = config.baseUrl || 'http://localhost:11434'
       const response = await fetch(`${baseUrl}/api/tags`, {
         method: 'GET',
-        signal: AbortSignal.timeout(2000), // 2 second timeout
+        signal: AbortSignal.timeout(2000),
       })
       return response.ok
     } catch {
       return false
     }
-  }
-
-  private async blobToBase64(blob: Blob): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onloadend = () => resolve(reader.result as string)
-      reader.onerror = reject
-      reader.readAsDataURL(blob)
-    })
   }
 }

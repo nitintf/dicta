@@ -73,6 +73,14 @@ impl WebviewWindowExt for WebviewWindow {
                 let handle = handle as cocoa_id;
                 let _: () = msg_send![handle, setCanHide: 0];
                 let _: () = msg_send![handle, setHidesOnDeactivate: 0];
+
+                // Enable accepting mouse events even when window is not active
+                // This allows clicks on buttons without requiring focus first
+                let _: () = msg_send![handle, setAcceptsMouseMovedEvents: 1];
+
+                // Allow window to receive mouse down events even when not key window
+                // This is critical for click-through behavior
+                let _: () = msg_send![handle, setIgnoresMouseEvents: 0];
             }
         }
 

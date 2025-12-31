@@ -1,4 +1,7 @@
+import { ModelProvider } from '../../models'
+
 export type TranscriptionProvider =
+  | 'apple'
   | 'openai'
   | 'anthropic'
   | 'google'
@@ -11,7 +14,7 @@ export type TranscriptionProvider =
   | 'assemblyai'
 
 export interface TranscriptionConfig {
-  provider: TranscriptionProvider
+  provider: ModelProvider
   model?: string
   apiKey?: string
   baseUrl?: string
