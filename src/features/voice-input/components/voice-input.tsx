@@ -5,6 +5,7 @@ import { LiveWaveform } from '@/components/ui/live-waveform'
 import { CancelButton } from './cancel-button'
 import { StopButton } from './stop-button'
 import { VoiceInputContainer } from './voice-input-container'
+import { useTauriEvent } from '../../../hooks/use-tauri-event'
 import { useVoiceRecording } from '../hooks/use-voice-recording'
 
 export function VoiceInput() {
@@ -16,6 +17,16 @@ export function VoiceInput() {
     stopRecording,
     cancelRecording,
   } = useVoiceRecording()
+
+  useTauriEvent<void>(
+    'stop_recording',
+    () => {
+      if (isRecording) {
+        stopRecording()
+      }
+    },
+    [isRecording, stopRecording]
+  )
 
   // Handle ESC key to cancel recording
   useEffect(() => {

@@ -5,7 +5,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranscriptionsStore } from '@/features/transcriptions'
 import { ensureMicPermission } from '@/lib/microphone-permissions'
 
-import { createControllableRecorder } from '../services/audio-utils'
+import {
+  createControllableRecorder,
+  playAudioFeedback,
+} from '../services/audio-utils'
 
 export type FeedbackMessage =
   | 'cancelled'
@@ -58,6 +61,9 @@ export function useVoiceRecording() {
       setIsRecording(true)
       recordingStartTimeRef.current = Date.now()
 
+      // Play audio feedback for recording start
+      playAudioFeedback('main')
+
       // Create audio context for analysis (if needed later)
       const AudioContextConstructor =
         window.AudioContext ||
@@ -91,6 +97,9 @@ export function useVoiceRecording() {
       setIsRecording(false)
       setIsProcessing(true)
       setFeedbackMessage('processing')
+
+      // Play audio feedback for recording stop
+      playAudioFeedback('main')
 
       // Stop the media recorder and get the audio blob
       let audioBlob: Blob | null = null
@@ -139,8 +148,6 @@ export function useVoiceRecording() {
             timestamp: Date.now(),
           })
 
-          console.log('Recording saved to store')
-
           // Show processing for a bit, then completed feedback
           await new Promise(resolve => setTimeout(resolve, 800))
           setFeedbackMessage('completed')
@@ -188,6 +195,9 @@ export function useVoiceRecording() {
     setIsRecording(false)
     setIsProcessing(false)
     setFeedbackMessage('cancelled')
+
+    // Play audio feedback for recording cancel
+    playAudioFeedback('cancel')
 
     // Stop and clean up media recorder
     if (

@@ -12,7 +12,7 @@ export interface TranscriptionsState {
   transcriptions: Transcription[]
   addTranscription: (
     transcription: Omit<Transcription, 'id' | 'wordCount'>
-  ) => void
+  ) => Transcription
   deleteTranscription: (id: string) => void
   clearAll: () => void
   getStats: () => {

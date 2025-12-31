@@ -221,7 +221,8 @@ pub fn run() {
                     if event.state == ShortcutState::Pressed && event.id == shortcut.id() {
                         let panel = app.get_webview_panel(SPOTLIGHT_LABEL).unwrap();
                         if panel.is_visible() {
-                            panel.order_out(None);
+                            let handle = app.app_handle();
+                            handle.emit("stop_recording", ()).unwrap();
                         } else {
                             let handle = app.app_handle();
                             handle.emit("show_voice_input", ()).unwrap();

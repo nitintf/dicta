@@ -131,3 +131,20 @@ export function createControllableRecorder(stream: MediaStream): {
 
   return { recorder: mediaRecorder, getBlob }
 }
+
+/**
+ * Play audio feedback for recording actions
+ */
+export function playAudioFeedback(audioFile: 'main' | 'cancel'): void {
+  try {
+    const audio = new Audio(
+      `/${audioFile === 'main' ? 'main.mp3' : 'cancel.wav'}`
+    )
+    audio.volume = 0.03 // Set volume to 3% for subtlety
+    audio.play().catch(error => {
+      console.error('Failed to play audio feedback:', error)
+    })
+  } catch (error) {
+    console.error('Error creating audio feedback:', error)
+  }
+}

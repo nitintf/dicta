@@ -12,7 +12,7 @@ export function HomePage() {
 
   const handleCopy = async (text: string) => {
     try {
-      await writeText(text)
+      void writeText(text)
     } catch (error) {
       console.error('Failed to copy text:', error)
     }

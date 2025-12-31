@@ -11,6 +11,7 @@
     "core:window:allow-close",
     "mic-recorder:default",
     "macos-permissions:default",
-    "clipboard-manager:default"
+    "clipboard-manager:allow-write-text",
+    "clipboard-manager:allow-read-text"
   ]
 }

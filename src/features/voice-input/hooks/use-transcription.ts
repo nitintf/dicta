@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core'
+import { writeText } from '@tauri-apps/plugin-clipboard-manager'
 import { useCallback, useState } from 'react'
 
 import { captureStreamToBlob } from '../services/audio-utils'
@@ -28,7 +28,7 @@ export function useTranscription() {
         setTranscript(result.text)
 
         // Insert text (copy to clipboard or paste at cursor)
-        await invoke('insert_text', { text: result.text })
+        void writeText(result.text)
 
         return result
       } catch (err) {
