@@ -1,4 +1,4 @@
-import { emit, listen } from '@tauri-apps/api/event'
+import { listen } from '@tauri-apps/api/event'
 import { Store, load } from '@tauri-apps/plugin-store'
 import { create } from 'zustand'
 
@@ -72,48 +72,12 @@ export const useTranscriptionsStore = create<TranscriptionsState>(
         }))
         await store.set('transcriptions', serializable)
         await store.save()
-
-        // Notify other windows to reload
-        await emit('transcriptions-changed')
       } catch (error) {
         console.error('Error saving transcription:', error)
       }
 
       set({ transcriptions: newTranscriptions })
       return newTranscription
-    },
-
-    updateTranscription: async (id, updates) => {
-      const newTranscriptions = get().transcriptions.map(t => {
-        if (t.id === id) {
-          const updated = { ...t, ...updates }
-          // Recalculate word count if text changed
-          if (updates.text !== undefined) {
-            updated.wordCount = countWords(updates.text)
-          }
-          return updated
-        }
-        return t
-      })
-
-      // Save to Tauri store
-      try {
-        const store = await getTauriStore()
-        const serializable = newTranscriptions.map(t => ({
-          ...t,
-          audioBlob: undefined,
-          audioUrl: undefined,
-        }))
-        await store.set('transcriptions', serializable)
-        await store.save()
-
-        // Notify other windows to reload
-        await emit('transcriptions-changed')
-      } catch (error) {
-        console.error('Error updating transcription:', error)
-      }
-
-      set({ transcriptions: newTranscriptions })
     },
 
     deleteTranscription: async id => {
@@ -128,9 +92,6 @@ export const useTranscriptionsStore = create<TranscriptionsState>(
         }))
         await store.set('transcriptions', serializable)
         await store.save()
-
-        // Notify other windows to reload
-        await emit('transcriptions-changed')
       } catch (error) {
         console.error('Error deleting transcription:', error)
       }
@@ -143,9 +104,6 @@ export const useTranscriptionsStore = create<TranscriptionsState>(
         const store = await getTauriStore()
         await store.set('transcriptions', [])
         await store.save()
-
-        // Notify other windows to reload
-        await emit('transcriptions-changed')
       } catch (error) {
         console.error('Error clearing transcriptions:', error)
       }

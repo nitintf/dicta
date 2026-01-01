@@ -15,10 +15,6 @@ export interface TranscriptionsState {
   addTranscription: (
     transcription: Omit<Transcription, 'id' | 'wordCount'>
   ) => Promise<Transcription>
-  updateTranscription: (
-    id: string,
-    updates: Partial<Omit<Transcription, 'id'>>
-  ) => Promise<void>
   deleteTranscription: (id: string) => Promise<void>
   clearAll: () => Promise<void>
   getStats: () => {

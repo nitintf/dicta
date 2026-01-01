@@ -1,25 +1,9 @@
-import { invoke } from '@tauri-apps/api/core'
-
-import type {
-  TranscriptionConfig,
-  TranscriptionResult,
-  TranscriptionProviderInterface,
-} from '../types'
-
-interface LocalWhisperResponse {
-  text: string
-  language?: string
-  segments?: Array<{
-    start: number
-    end: number
-    text: string
-  }>
-}
-
 /**
  * Converts an audio Blob to WAV format using Web Audio API
+ * This is required because browser MediaRecorder outputs WebM/Opus,
+ * but Whisper models expect WAV PCM format
  */
-async function convertToWav(blob: Blob): Promise<Blob> {
+export async function convertToWav(blob: Blob): Promise<Blob> {
   const arrayBuffer = await blob.arrayBuffer()
   const audioContext = new AudioContext({ sampleRate: 16000 })
 
@@ -84,53 +68,5 @@ async function convertToWav(blob: Blob): Promise<Blob> {
     return new Blob([wavBuffer], { type: 'audio/wav' })
   } finally {
     await audioContext.close()
-  }
-}
-
-/**
- * Local Whisper Provider
- * Uses locally installed whisper or whisper.cpp to transcribe audio
- */
-export class LocalWhisperProvider implements TranscriptionProviderInterface {
-  async transcribe(
-    audioBlob: Blob,
-    config: TranscriptionConfig
-  ): Promise<TranscriptionResult> {
-    try {
-      // Convert to WAV format first
-      const wavBlob = await convertToWav(audioBlob)
-
-      // Convert Blob to ArrayBuffer and then to Array
-      const arrayBuffer = await wavBlob.arrayBuffer()
-      const audioData = Array.from(new Uint8Array(arrayBuffer))
-
-      const response = await invoke<LocalWhisperResponse>(
-        'transcribe_with_local_whisper',
-        {
-          audioData,
-          model: config.model || 'base',
-          language: config.language,
-        }
-      )
-
-      return {
-        text: response.text || '',
-        language: response.language,
-        segments: response.segments,
-      }
-    } catch (error) {
-      throw new Error(
-        `Local Whisper transcription failed: ${error instanceof Error ? error.message : String(error)}`
-      )
-    }
-  }
-
-  async isAvailable(): Promise<boolean> {
-    try {
-      const available = await invoke<boolean>('check_whisper_available')
-      return available
-    } catch {
-      return false
-    }
   }
 }

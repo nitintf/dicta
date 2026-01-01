@@ -63,4 +63,5 @@ export interface ModelsState {
   startLocalModel: (id: string) => Promise<void>
   stopLocalModel: (id: string) => Promise<void>
   getModelStatus: (id: string) => ModelStatus
+  refreshModelStatus: (id: string) => Promise<ModelStatus>
 }

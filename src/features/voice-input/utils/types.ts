@@ -1,5 +1,12 @@
 import { ModelProvider } from '../../models'
 
+export type FeedbackMessage =
+  | 'cancelled'
+  | 'processing'
+  | 'completed'
+  | 'error'
+  | null
+
 export type TranscriptionProvider =
   | 'apple'
   | 'openai'

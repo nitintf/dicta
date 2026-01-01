@@ -49,6 +49,7 @@
     "assemblyai": "^4.22.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
     "lodash-es": "^4.17.22",
     "lucide-react": "^0.562.0",
     "motion": "^12.23.26",

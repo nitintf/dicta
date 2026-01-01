@@ -1,23 +1,9 @@
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tauri::{command, State};
 use tokio::sync::Mutex;
 
+use super::TranscriptionResponse;
 use crate::models::whisper_manager::WhisperManager;
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct TranscriptionSegment {
-    pub start: f64,
-    pub end: f64,
-    pub text: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct TranscriptionResponse {
-    pub text: String,
-    pub language: Option<String>,
-    pub segments: Option<Vec<TranscriptionSegment>>,
-}
 
 /// Converts WAV audio bytes to f32 samples for whisper-rs
 ///

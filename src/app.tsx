@@ -15,7 +15,6 @@ import { StylesPage } from './features/styles'
 import './index.css'
 
 function App() {
-  // Initialize model status listener on app mount
   useEffect(() => {
     initializeModelStatusListener()
   }, [])

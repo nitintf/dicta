@@ -2,12 +2,27 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tauri::Runtime;
 
+use super::TranscriptionResponse;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppleSpeechResult {
     pub text: String,
     pub confidence: Option<f64>,
 }
 
+/// Non-command version that accepts raw audio bytes (for use in orchestrator)
+pub async fn transcribe_audio_bytes(
+    _audio_data: Vec<u8>,
+    _language: Option<String>,
+) -> Result<TranscriptionResponse, String> {
+    // This is a placeholder - the actual implementation would use
+    // macOS Speech Recognition framework through Objective-C bindings
+
+    // For now, return an error indicating it's not yet implemented
+    Err("Apple Speech Recognition is not yet implemented. This requires native macOS Speech framework integration.".to_string())
+}
+
+/// Tauri command version that accepts an audio file path
 #[tauri::command]
 pub async fn transcribe_with_apple_speech<R: Runtime>(
     _app: tauri::AppHandle<R>,

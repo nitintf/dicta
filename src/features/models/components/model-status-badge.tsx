@@ -30,16 +30,18 @@ export function ModelStatusBadge({ status, className }: ModelStatusBadgeProps) {
       label: 'Stopped',
       variant: 'secondary' as const,
       animate: false,
+      className: 'bg-gray-500/10 text-gray-600 border-gray-500/20',
     },
     loading: {
       icon: Loader2,
       label: 'Loading...',
       variant: 'default' as const,
       animate: true,
+      className: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
     },
     ready: {
       icon: CheckCircle2,
-      label: 'Ready',
+      label: 'Running',
       variant: 'default' as const,
       animate: false,
       className: 'bg-green-500/10 text-green-600 border-green-500/20',
@@ -63,7 +65,7 @@ export function ModelStatusBadge({ status, className }: ModelStatusBadgeProps) {
       <Icon
         className={`w-3 h-3 ${statusConfig.animate ? 'animate-spin' : ''}`}
       />
-      <span className="text-xs">{statusConfig.label}</span>
+      <span className="text-xs font-medium">{statusConfig.label}</span>
     </Badge>
   )
 }

@@ -17,14 +17,10 @@ mod transcription;
 mod window;
 
 use models::{
-    delete_whisper_model, download_whisper_model, get_all_models, get_model_path,
-    list_available_models, WhisperManager,
+    delete_whisper_model, download_whisper_model, get_all_models, get_local_model_status,
+    get_model_path, list_available_models, start_local_model, stop_local_model, WhisperManager,
 };
-use transcription::{
-    check_whisper_available, get_whisper_model_status, start_whisper_model, stop_whisper_model,
-    transcribe_with_apple_speech, transcribe_with_google, transcribe_with_local_whisper,
-    transcribe_with_openai,
-};
+use transcription::{check_whisper_available, transcribe_and_process};
 
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -430,20 +426,17 @@ pub fn run() {
 
     let app = builder
         .invoke_handler(tauri::generate_handler![
-            transcribe_with_apple_speech,
-            transcribe_with_openai,
-            transcribe_with_google,
-            transcribe_with_local_whisper,
+            transcribe_and_process,
             check_whisper_available,
-            clipboard_utils::copy_and_paste,
             get_all_models,
             list_available_models,
             download_whisper_model,
             delete_whisper_model,
             get_model_path,
-            start_whisper_model,
-            stop_whisper_model,
-            get_whisper_model_status,
+            // Local model lifecycle commands
+            start_local_model,
+            stop_local_model,
+            get_local_model_status,
         ])
         .setup(setup_fn)
         .build(tauri::generate_context!())

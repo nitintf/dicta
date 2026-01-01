@@ -1,19 +1,7 @@
 use serde::{Deserialize, Serialize};
 use tauri::command;
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct TranscriptionSegment {
-    pub start: f64,
-    pub end: f64,
-    pub text: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct TranscriptionResponse {
-    pub text: String,
-    pub language: Option<String>,
-    pub segments: Option<Vec<TranscriptionSegment>>,
-}
+use super::TranscriptionResponse;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct GoogleSpeechRequest {

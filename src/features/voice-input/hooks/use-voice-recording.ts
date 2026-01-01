@@ -1,24 +1,28 @@
-import { invoke } from '@tauri-apps/api/core'
 import { emit } from '@tauri-apps/api/event'
-import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { useModelsStore } from '@/features/models'
-import { useTranscriptionsStore } from '@/features/transcriptions'
-import { ensureMicPermission } from '@/lib/microphone-permissions'
-
 import {
+  calculateDuration,
+  cleanupAudioContext,
+  cleanupMediaRecorder,
+  cleanupMediaStream,
+  createAudioContext,
   createControllableRecorder,
+  delay,
+  hideVoiceInputWindow,
+  initializeMediaStream,
   playAudioFeedback,
-} from '../services/audio-utils'
-import { transcriptionService } from '../services/transcription-service'
+  processTranscription,
+  showFeedbackAndHide,
+  stopMediaRecorder,
+  type FeedbackMessage,
+} from '@/features/voice-input/utils'
 
-export type FeedbackMessage =
-  | 'cancelled'
-  | 'processing'
-  | 'completed'
-  | 'error'
-  | null
+const FEEDBACK_DURATION = {
+  COMPLETED: 500,
+  ERROR: 500,
+  CANCELLED: 750,
+} as const
 
 export function useVoiceRecording() {
   const streamRef = useRef<MediaStream | null>(null)
@@ -31,54 +35,22 @@ export function useVoiceRecording() {
   const [stream, setStream] = useState<MediaStream | null>(null)
   const [feedbackMessage, setFeedbackMessage] = useState<FeedbackMessage>(null)
 
-  const addTranscription = useTranscriptionsStore(
-    state => state.addTranscription
-  )
-  const updateTranscription = useTranscriptionsStore(
-    state => state.updateTranscription
-  )
-  const models = useModelsStore(state => state.models)
-
+  /**
+   * Starts recording by initializing media stream and recorder
+   */
   const startRecording = useCallback(async () => {
-    // Check and request permission if needed
-    console.log('Starting recording, checking microphone permission...')
-    const hasMicPermission = await ensureMicPermission()
-    console.log('Has mic permission:', hasMicPermission)
-
-    if (!hasMicPermission) {
-      console.error('Microphone permission not granted via Tauri plugin')
-      console.log('Attempting direct getUserMedia call anyway...')
-    }
-
     try {
-      // Get microphone stream - try even if Tauri permission check failed
-      // because the webview might have its own permission
-      console.log('Calling getUserMedia...')
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-      })
-      console.log('getUserMedia successful, got stream:', mediaStream)
+      const mediaStream = await initializeMediaStream()
 
       streamRef.current = mediaStream
       setStream(mediaStream)
       setIsRecording(true)
       recordingStartTimeRef.current = Date.now()
 
-      // Play audio feedback for recording start
       playAudioFeedback('main')
 
-      // Create audio context for analysis (if needed later)
-      const AudioContextConstructor =
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext: typeof AudioContext })
-          .webkitAudioContext
-      audioContextRef.current = new AudioContextConstructor()
+      audioContextRef.current = createAudioContext()
 
-      // Start recording audio for transcription
       const { recorder } = createControllableRecorder(mediaStream)
       mediaRecorderRef.current = recorder
       recorder.start()
@@ -90,214 +62,107 @@ export function useVoiceRecording() {
     }
   }, [])
 
-  const hideWindow = useCallback(async () => {
-    const currentWindow = getCurrentWindow()
-    try {
-      await currentWindow.hide()
-    } catch (error) {
-      console.error('Failed to hide window:', error)
-    }
-  }, [])
-
+  /**
+   * Stops recording and processes transcription
+   */
   const stopRecording = useCallback(async () => {
     try {
       setIsRecording(false)
       setIsProcessing(true)
       setFeedbackMessage('processing')
 
-      // Play audio feedback for recording stop
       playAudioFeedback('main')
 
-      // Stop the media recorder and get the audio blob
-      let audioBlob: Blob | null = null
       const recorder = mediaRecorderRef.current
+      let audioBlob: Blob | null = null
+
       if (recorder && recorder.state === 'recording') {
-        audioBlob = await new Promise<Blob>((resolve, reject) => {
-          const chunks: Blob[] = []
-
-          const handleDataAvailable = (event: BlobEvent) => {
-            if (event.data.size > 0) {
-              chunks.push(event.data)
-            }
-          }
-
-          const handleStop = () => {
-            const blob = new Blob(chunks, { type: recorder.mimeType })
-            resolve(blob)
-          }
-
-          const handleError = (error: Event) => {
-            reject(error)
-          }
-
-          recorder.addEventListener('dataavailable', handleDataAvailable)
-          recorder.addEventListener('stop', handleStop, { once: true })
-          recorder.addEventListener('error', handleError, { once: true })
-
-          recorder.stop()
-        })
+        audioBlob = await stopMediaRecorder(recorder)
         mediaRecorderRef.current = null
       }
 
-      // Save audio and transcribe
       if (audioBlob) {
         try {
-          // Calculate duration
-          const duration = recordingStartTimeRef.current
-            ? (Date.now() - recordingStartTimeRef.current) / 1000
-            : 0
-
+          const duration = calculateDuration(recordingStartTimeRef.current)
           const timestamp = Date.now()
 
-          // Get selected model
-          const selectedModel = models.find(m => m.isSelected && m.isEnabled)
-          console.log('Selected model:', selectedModel)
-
-          // Perform transcription in background
-          if (selectedModel) {
-            try {
-              const result = await transcriptionService.transcribe(audioBlob, {
-                provider: selectedModel.provider,
-                model: selectedModel.id,
-                apiKey: selectedModel.apiKey,
-                language: 'en',
-              })
-
-              await addTranscription({
-                text: result.text,
-                audioBlob,
-                duration,
-                timestamp,
-              })
-
-              console.log('Transcription completed:', result.text)
-
-              // Copy to clipboard and paste at cursor
-              try {
-                await invoke('copy_and_paste', { text: result.text })
-                console.log('Text copied and pasted successfully')
-              } catch (pasteError) {
-                console.error('Failed to paste text:', pasteError)
-              }
-            } catch (transcriptionError) {
-              console.error('Transcription failed:', transcriptionError)
-              // Update with error message
-              await addTranscription({
-                text: `[Transcription failed: ${transcriptionError instanceof Error ? transcriptionError.message : 'Unknown error'}]`,
-                audioBlob,
-                duration,
-                timestamp,
-              })
-            }
-          } else {
-            // No model selected
-            await addTranscription({
-              text: '[No transcription model selected]',
-              audioBlob,
-              duration,
-              timestamp,
-            })
-          }
+          await processTranscription({ audioBlob, timestamp, duration })
 
           setFeedbackMessage('completed')
-          await new Promise(resolve => setTimeout(resolve, 1500))
-        } catch (error) {
-          console.error('Failed to save recording:', error)
+          await delay(FEEDBACK_DURATION.COMPLETED)
+        } catch (transcriptionError) {
+          console.error('Transcription failed:', transcriptionError)
           setFeedbackMessage('error')
-          await new Promise(resolve => setTimeout(resolve, 2000))
+          await delay(FEEDBACK_DURATION.ERROR)
         }
       }
 
       recordingStartTimeRef.current = null
 
-      // Clean up stream after processing
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop())
-        streamRef.current = null
-        setStream(null)
-      }
-      if (
-        audioContextRef.current &&
-        audioContextRef.current.state !== 'closed'
-      ) {
-        audioContextRef.current.close()
-        audioContextRef.current = null
-      }
+      cleanupMediaStream(streamRef.current)
+      streamRef.current = null
+      setStream(null)
+
+      cleanupAudioContext(audioContextRef.current)
+      audioContextRef.current = null
 
       setIsProcessing(false)
       setFeedbackMessage(null)
-
-      // Close window after feedback is shown
-      await hideWindow()
+      await hideVoiceInputWindow()
     } catch (error) {
       console.error('Failed to stop recording:', error)
       setIsRecording(false)
       setIsProcessing(false)
-      setFeedbackMessage('error')
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      setFeedbackMessage(null)
-      await hideWindow()
+      await showFeedbackAndHide(
+        setFeedbackMessage,
+        'error',
+        FEEDBACK_DURATION.ERROR * 2
+      )
     }
-  }, [addTranscription, updateTranscription, models, hideWindow])
+  }, [])
 
+  /**
+   * Cancels recording without processing transcription
+   */
   const cancelRecording = useCallback(async () => {
     setIsRecording(false)
     setIsProcessing(false)
-    setFeedbackMessage('cancelled')
 
-    // Play audio feedback for recording cancel
     playAudioFeedback('cancel')
 
-    // Stop and clean up media recorder
-    if (
-      mediaRecorderRef.current &&
-      mediaRecorderRef.current.state === 'recording'
-    ) {
-      mediaRecorderRef.current.stop()
-    }
+    cleanupMediaRecorder(mediaRecorderRef.current)
     mediaRecorderRef.current = null
 
-    // Clean up stream
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop())
-      streamRef.current = null
-      setStream(null)
-    }
-    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-      audioContextRef.current.close()
-      audioContextRef.current = null
-    }
+    cleanupMediaStream(streamRef.current)
+    streamRef.current = null
+    setStream(null)
 
-    // Show cancelled message for 2 seconds
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    setFeedbackMessage(null)
+    cleanupAudioContext(audioContextRef.current)
+    audioContextRef.current = null
 
-    await hideWindow()
-  }, [hideWindow])
+    await showFeedbackAndHide(
+      setFeedbackMessage,
+      'cancelled',
+      FEEDBACK_DURATION.CANCELLED
+    )
+  }, [])
 
-  // Auto-start recording when component mounts
-  // Component will be remounted on every window show due to key change
   useEffect(() => {
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       startRecording()
     }, 100)
+
+    return () => clearTimeout(timer)
   }, [startRecording])
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop())
-        streamRef.current = null
-        setStream(null)
-      }
-      if (
-        audioContextRef.current &&
-        audioContextRef.current.state !== 'closed'
-      ) {
-        audioContextRef.current.close()
-        audioContextRef.current = null
-      }
+      cleanupMediaStream(streamRef.current)
+      streamRef.current = null
+      setStream(null)
+
+      cleanupAudioContext(audioContextRef.current)
+      audioContextRef.current = null
     }
   }, [])
 

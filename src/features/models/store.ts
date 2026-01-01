@@ -3,12 +3,13 @@ import { listen, emit } from '@tauri-apps/api/event'
 import { Store, load } from '@tauri-apps/plugin-store'
 import { create } from 'zustand'
 
-import type {
-  TranscriptionModel,
-  ModelsState,
-  ModelStatusInfo,
-  ModelStatus,
-} from './types'
+import {
+  getLocalModelStatus,
+  startLocalModel as startLocalModelCommand,
+  stopLocalModel as stopLocalModelCommand,
+} from './utils/local-model-actions'
+
+import type { TranscriptionModel, ModelsState, ModelStatus } from './types'
 
 let tauriStore: Store | null = null
 
@@ -256,7 +257,7 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
 
   startLocalModel: async id => {
     const model = get().models.find(m => m.id === id)
-    if (!model || model.provider !== 'local-whisper' || !model.path) {
+    if (!model || model.type !== 'local' || !model.path) {
       throw new Error('Invalid model for starting')
     }
 
@@ -264,11 +265,35 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
     const modelName = model.id.replace('whisper-', '')
 
     try {
-      await invoke('start_whisper_model', {
-        modelName,
-        modelPath: model.path,
-      })
+      // Update status to loading immediately
+      const statuses = new Map(get().modelStatuses)
+      statuses.set(id, 'loading')
+      set({ modelStatuses: statuses })
+
+      await startLocalModelCommand(id, modelName, model.path)
+
+      // Verify the model actually started by checking status after a delay
+      setTimeout(async () => {
+        try {
+          const statusInfo = await getLocalModelStatus(id)
+          if (
+            statusInfo.status === 'error' ||
+            statusInfo.status === 'stopped'
+          ) {
+            const statuses = new Map(get().modelStatuses)
+            statuses.set(id, 'error')
+            set({ modelStatuses: statuses })
+          }
+        } catch (err) {
+          console.error('Failed to verify model status:', err)
+        }
+      }, 2000)
     } catch (error) {
+      // Update status to error on failure
+      const statuses = new Map(get().modelStatuses)
+      statuses.set(id, 'error')
+      set({ modelStatuses: statuses })
+
       console.error('Failed to start model:', error)
       throw error
     }
@@ -276,7 +301,7 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
 
   stopLocalModel: async id => {
     try {
-      await invoke('stop_whisper_model')
+      await stopLocalModelCommand()
 
       // Update status
       const statuses = new Map(get().modelStatuses)
@@ -291,6 +316,26 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
   getModelStatus: id => {
     return get().modelStatuses.get(id) || 'stopped'
   },
+
+  refreshModelStatus: async id => {
+    try {
+      const statusInfo = await getLocalModelStatus(id)
+      const statuses = new Map(get().modelStatuses)
+      statuses.set(id, statusInfo.status)
+      set({ modelStatuses: statuses })
+
+      // Also update the model's status field
+      const models = get().models.map(m =>
+        m.id === id ? { ...m, status: statusInfo.status } : m
+      )
+      set({ models })
+
+      return statusInfo.status
+    } catch (error) {
+      console.error('Failed to refresh model status:', error)
+      throw error
+    }
+  },
 }))
 
 export const initializeModels = async () => {
@@ -299,11 +344,17 @@ export const initializeModels = async () => {
 
 // Initialize model status listener
 export const initializeModelStatusListener = () => {
-  listen<ModelStatusInfo>('whisper-model-status', event => {
-    const { status, modelName } = event.payload
+  // Listen for new generic local model status events
+  listen<{
+    status: ModelStatus
+    modelName: string | null
+    modelId: string | null
+  }>('local-model-status', event => {
+    const { status, modelId } = event.payload
 
-    if (modelName) {
-      const modelId = `whisper-${modelName}`
+    console.log('Local model status:', status, modelId)
+
+    if (modelId) {
       useModelsStore.setState(state => {
         const statuses = new Map(state.modelStatuses)
         statuses.set(modelId, status)
