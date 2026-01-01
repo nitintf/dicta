@@ -1,18 +1,15 @@
-use tauri::menu::{MenuBuilder, MenuItem, PredefinedMenuItem, SubmenuBuilder};
-use tauri::tray::TrayIconBuilder;
 use tauri::{Emitter, Listener, Manager};
-use tauri_plugin_global_shortcut::{Code, Modifiers, Shortcut, ShortcutState};
-use tauri_plugin_store::StoreExt;
 
 #[cfg(target_os = "macos")]
 use tauri::ActivationPolicy;
 
-#[cfg(target_os = "macos")]
-use tauri_nspanel::ManagerExt;
 use window::WebviewWindowExt;
 
 mod clipboard_utils;
+mod menu;
 mod models;
+mod shortcut_utils;
+mod shortcuts;
 mod transcription;
 mod window;
 
@@ -26,82 +23,6 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 pub const SPOTLIGHT_LABEL: &str = "voice-input";
-
-fn char_to_code(ch: char) -> Option<Code> {
-    match ch {
-        'A' => Some(Code::KeyA),
-        'B' => Some(Code::KeyB),
-        'C' => Some(Code::KeyC),
-        'D' => Some(Code::KeyD),
-        'E' => Some(Code::KeyE),
-        'F' => Some(Code::KeyF),
-        'G' => Some(Code::KeyG),
-        'H' => Some(Code::KeyH),
-        'I' => Some(Code::KeyI),
-        'J' => Some(Code::KeyJ),
-        'K' => Some(Code::KeyK),
-        'L' => Some(Code::KeyL),
-        'M' => Some(Code::KeyM),
-        'N' => Some(Code::KeyN),
-        'O' => Some(Code::KeyO),
-        'P' => Some(Code::KeyP),
-        'Q' => Some(Code::KeyQ),
-        'R' => Some(Code::KeyR),
-        'S' => Some(Code::KeyS),
-        'T' => Some(Code::KeyT),
-        'U' => Some(Code::KeyU),
-        'V' => Some(Code::KeyV),
-        'W' => Some(Code::KeyW),
-        'X' => Some(Code::KeyX),
-        'Y' => Some(Code::KeyY),
-        'Z' => Some(Code::KeyZ),
-        _ => None,
-    }
-}
-
-fn parse_shortcut(shortcut_str: &str) -> Option<Shortcut> {
-    println!("Attempting to parse shortcut: {}", shortcut_str);
-    let parts: Vec<&str> = shortcut_str.split('+').map(str::trim).collect();
-    println!("Split parts: {:?}", parts);
-    if parts.is_empty() {
-        println!("No parts found in shortcut string");
-        return None;
-    }
-
-    let mut modifiers = Modifiers::empty();
-    let key_str = parts.last()?;
-    println!("Key string: {}", key_str);
-
-    // Parse modifiers from all parts except last
-    for modifier in &parts[..parts.len() - 1] {
-        println!("Processing modifier: {}", modifier);
-        match modifier.to_lowercase().as_str() {
-            "alt" => modifiers |= Modifiers::ALT,
-            "ctrl" | "control" => modifiers |= Modifiers::CONTROL,
-            "shift" => modifiers |= Modifiers::SHIFT,
-            "super" | "cmd" | "command" => modifiers |= Modifiers::SUPER,
-            _ => {
-                println!("Unknown modifier: {}", modifier);
-                return None;
-            }
-        }
-    }
-    println!("Final modifiers: {:?}", modifiers);
-
-    let code = match key_str.to_lowercase().as_str() {
-        "space" => Code::Space,
-        "enter" => Code::Enter,
-        "tab" => Code::Tab,
-        "escape" => Code::Escape,
-        c if c.len() == 1 => {
-            let ch = c.chars().next()?;
-            char_to_code(ch.to_ascii_uppercase())?
-        }
-        _ => return None,
-    };
-
-    Some(Shortcut::new(Some(modifiers), code))
-}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -151,134 +72,11 @@ pub fn run() {
         let whisper_state = app.state::<Arc<Mutex<WhisperManager>>>();
         let whisper_cleanup = whisper_state.inner().clone();
 
-        // Create system tray menu
-        let shortcuts_submenu = SubmenuBuilder::new(app, "Shortcuts")
-            .item(&MenuItem::with_id(
-                app,
-                "microphone",
-                "Microphone",
-                true,
-                None::<&str>,
-            )?)
-            .build()?;
+        // Setup system tray
+        menu::setup_tray(app, whisper_cleanup.clone())?;
 
-        let tray_menu = MenuBuilder::new(app)
-            .item(&MenuItem::with_id(app, "home", "Home", true, None::<&str>)?)
-            .item(&MenuItem::with_id(
-                app,
-                "check-updates",
-                "Check for updates...",
-                true,
-                None::<&str>,
-            )?)
-            .item(&MenuItem::with_id(
-                app,
-                "paste-last",
-                "Paste last transcript",
-                true,
-                Some("CmdOrCtrl+Shift+V"),
-            )?)
-            .separator()
-            .item(&shortcuts_submenu)
-            .separator()
-            .item(&MenuItem::with_id(
-                app,
-                "settings-tray",
-                "Settings",
-                true,
-                None::<&str>,
-            )?)
-            .separator()
-            .item(&MenuItem::with_id(
-                app,
-                "help-center",
-                "Help Center",
-                true,
-                None::<&str>,
-            )?)
-            .item(&MenuItem::with_id(
-                app,
-                "talk-to-support",
-                "Talk to support",
-                true,
-                Some("CmdOrCtrl+/"),
-            )?)
-            .item(&MenuItem::with_id(
-                app,
-                "general-feedback",
-                "General feedback",
-                true,
-                None::<&str>,
-            )?)
-            .separator()
-            .item(&MenuItem::with_id(
-                app,
-                "quit",
-                "Quit Dicta",
-                true,
-                Some("CmdOrCtrl+Q"),
-            )?)
-            .build()?;
-
-        // Create tray icon with menu
-        let _tray = TrayIconBuilder::new()
-            .menu(&tray_menu)
-            .icon(app.default_window_icon().unwrap().clone())
-            .on_menu_event(move |app, event| {
-                match event.id().as_ref() {
-                    "home" => {
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.set_focus();
-                        }
-                    }
-                    "check-updates" => {
-                        // TODO: Implement update check
-                        println!("Check for updates clicked");
-                    }
-                    "paste-last" => {
-                        // TODO: Implement paste last transcript
-                        println!("Paste last transcript clicked");
-                    }
-                    "microphone" => {
-                        // TODO: Open microphone settings
-                        println!("Microphone settings clicked");
-                    }
-                    "settings-tray" => {
-                        // TODO: Open settings window/page
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.set_focus();
-                            // TODO: Navigate to settings page
-                        }
-                    }
-                    "help-center" => {
-                        // TODO: Open help center URL
-                        println!("Help center clicked");
-                    }
-                    "talk-to-support" => {
-                        // TODO: Open support URL
-                        println!("Talk to support clicked");
-                    }
-                    "general-feedback" => {
-                        // TODO: Open feedback URL
-                        println!("General feedback clicked");
-                    }
-                    "quit" => {
-                        // Cleanup whisper model before exit
-                        let whisper = whisper_cleanup.clone();
-                        let runtime = tokio::runtime::Runtime::new().unwrap();
-                        runtime.block_on(async {
-                            let mut manager = whisper.lock().await;
-                            manager.unload_model();
-                            println!("Whisper model stopped on app exit");
-                        });
-                        app.exit(0);
-                    }
-                    _ => {}
-                }
-            })
-            .build(app)?;
+        // Setup menu bar
+        menu::setup_menu_bar(app)?;
 
         // Prevent app from quitting when main window is closed
         if let Some(window) = app.get_webview_window("main") {
@@ -292,79 +90,6 @@ pub fn run() {
                 }
             });
         }
-
-        let app_menu = SubmenuBuilder::new(app, "Dicta")
-            .item(&MenuItem::with_id(
-                app,
-                "about-dicta",
-                "About Dicta",
-                true,
-                None::<&str>,
-            )?)
-            .separator()
-            .item(&MenuItem::with_id(
-                app,
-                "settings",
-                "Settings",
-                true,
-                Some("CmdOrCtrl+,"),
-            )?)
-            .separator()
-            .item(&PredefinedMenuItem::hide(app, None)?)
-            .item(&PredefinedMenuItem::hide_others(app, None)?)
-            .item(&PredefinedMenuItem::show_all(app, None)?)
-            .separator()
-            .item(&PredefinedMenuItem::quit(app, None)?)
-            .build()?;
-
-        // Create Edit menu with native copy/paste
-        let edit_menu = SubmenuBuilder::new(app, "Edit")
-            .item(&PredefinedMenuItem::undo(app, None)?)
-            .item(&PredefinedMenuItem::redo(app, None)?)
-            .separator()
-            .item(&PredefinedMenuItem::cut(app, None)?)
-            .item(&PredefinedMenuItem::copy(app, None)?)
-            .item(&PredefinedMenuItem::paste(app, None)?)
-            .item(&PredefinedMenuItem::select_all(app, None)?)
-            .build()?;
-
-        // Create View menu
-        let view_menu = SubmenuBuilder::new(app, "View")
-            .item(&PredefinedMenuItem::fullscreen(app, None)?)
-            .build()?;
-
-        // Create Window menu
-        let window_menu = SubmenuBuilder::new(app, "Window")
-            .item(&PredefinedMenuItem::minimize(app, None)?)
-            .item(&PredefinedMenuItem::maximize(app, None)?)
-            .separator()
-            .item(&PredefinedMenuItem::close_window(app, None)?)
-            .build()?;
-
-        // Create Shortcuts menu
-
-        // Create Updates menu
-        let updates_menu = SubmenuBuilder::new(app, "Updates")
-            .item(&MenuItem::with_id(
-                app,
-                "changelog",
-                "Changelog",
-                true,
-                None::<&str>,
-            )?)
-            .build()?;
-
-        // Build the complete menu
-        let menu = MenuBuilder::new(app)
-            .item(&app_menu)
-            .item(&edit_menu)
-            .item(&view_menu)
-            .item(&window_menu)
-            .item(&updates_menu)
-            .build()?;
-
-        // Set as app menu
-        app.set_menu(menu)?;
 
         // Initialize the store
         let window = handle.get_webview_window(SPOTLIGHT_LABEL).unwrap();
@@ -383,43 +108,8 @@ pub fn run() {
             },
         );
 
-        // Read the quickChat shortcut from the settings store.
-        let store = app.store("settings");
-        let voice_input_shortcut = store
-            .ok()
-            .and_then(|store| store.get("settings"))
-            .and_then(|settings| {
-                settings
-                    .as_object()
-                    .and_then(|s| s.get("voiceInput"))
-                    .and_then(|t| t.get("shortcut"))
-                    .and_then(|m| m.as_str().map(String::from))
-            })
-            .unwrap_or("Alt+Space".to_string());
-
-        let shortcut = parse_shortcut(&voice_input_shortcut)
-            .unwrap_or(Shortcut::new(Some(Modifiers::ALT), Code::Space));
-
-        // Register the voice input shortcut.
-        app.handle().plugin(
-            tauri_plugin_global_shortcut::Builder::new()
-                .with_shortcuts([shortcut])
-                .expect("Failed to register shortcut")
-                .with_handler(move |app, shortcut, event| {
-                    if event.state == ShortcutState::Pressed && event.id == shortcut.id() {
-                        let panel = app.get_webview_panel(SPOTLIGHT_LABEL).unwrap();
-                        if panel.is_visible() {
-                            let handle = app.app_handle();
-                            handle.emit("stop_recording", ()).unwrap();
-                        } else {
-                            let handle = app.app_handle();
-                            handle.emit("show_voice_input", ()).unwrap();
-                            panel.show();
-                        }
-                    }
-                })
-                .build(),
-        )?;
+        // Register global shortcuts
+        shortcuts::register_voice_input_shortcut(app)?;
 
         Ok(())
     };
