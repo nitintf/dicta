@@ -37,31 +37,6 @@ fn get_models_dir(app: &AppHandle) -> Result<PathBuf, String> {
 }
 
 #[command]
-pub async fn list_available_models(app: AppHandle) -> Result<Vec<ModelInfo>, String> {
-    let models_dir = get_models_dir(&app)?;
-
-    let mut models = Vec::new();
-
-    for (name, _url, size) in WHISPER_MODELS {
-        let model_path = models_dir.join(format!("ggml-{}.bin", name));
-        let downloaded = model_path.exists();
-
-        models.push(ModelInfo {
-            name: name.to_string(),
-            size: size.to_string(),
-            downloaded,
-            path: if downloaded {
-                Some(model_path.to_string_lossy().to_string())
-            } else {
-                None
-            },
-        });
-    }
-
-    Ok(models)
-}
-
-#[command]
 pub async fn download_whisper_model(app: AppHandle, model_name: String) -> Result<String, String> {
     // Find the model URL
     let model_info = WHISPER_MODELS
@@ -155,16 +130,4 @@ pub async fn delete_whisper_model(app: AppHandle, model_name: String) -> Result<
     }
 
     Ok(())
-}
-
-#[command]
-pub async fn get_model_path(app: AppHandle, model_name: String) -> Result<Option<String>, String> {
-    let models_dir = get_models_dir(&app)?;
-    let model_path = models_dir.join(format!("ggml-{}.bin", model_name));
-
-    if model_path.exists() {
-        Ok(Some(model_path.to_string_lossy().to_string()))
-    } else {
-        Ok(None)
-    }
 }

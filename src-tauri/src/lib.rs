@@ -18,9 +18,9 @@ mod window;
 
 use models::{
     delete_whisper_model, download_whisper_model, get_all_models, get_local_model_status,
-    get_model_path, list_available_models, start_local_model, stop_local_model, WhisperManager,
+    start_local_model, stop_local_model, WhisperManager,
 };
-use transcription::{check_whisper_available, transcribe_and_process};
+use transcription::transcribe_and_process;
 
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -427,12 +427,9 @@ pub fn run() {
     let app = builder
         .invoke_handler(tauri::generate_handler![
             transcribe_and_process,
-            check_whisper_available,
             get_all_models,
-            list_available_models,
             download_whisper_model,
             delete_whisper_model,
-            get_model_path,
             // Local model lifecycle commands
             start_local_model,
             stop_local_model,

@@ -75,21 +75,3 @@ pub async fn transcribe_with_local_whisper(
         segments: None, // Can be enhanced later to return segment information
     })
 }
-
-/// Checks if local Whisper is available (model is loaded and ready)
-///
-/// # Arguments
-/// * `state` - Shared WhisperManager state
-///
-/// # Returns
-/// `true` if a model is loaded and ready, `false` otherwise
-#[command]
-pub async fn check_whisper_available(
-    state: State<'_, Arc<Mutex<WhisperManager>>>,
-) -> Result<bool, String> {
-    let manager = state.lock().await;
-    let status = manager.get_status();
-
-    // Model is available if it's ready
-    Ok(status == crate::models::whisper_manager::ModelStatus::Ready)
-}
