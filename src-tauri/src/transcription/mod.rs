@@ -1,4 +1,5 @@
 pub mod apple_speech;
+pub mod elevenlabs_transcription;
 pub mod google_transcription;
 pub mod local_whisper;
 pub mod openai_transcription;

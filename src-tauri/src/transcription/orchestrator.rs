@@ -9,7 +9,10 @@ use uuid::Uuid;
 use crate::clipboard_utils;
 use crate::models::whisper_manager::WhisperManager;
 
-use super::{apple_speech, google_transcription, local_whisper, openai_transcription};
+use super::{
+    apple_speech, elevenlabs_transcription, google_transcription, local_whisper,
+    openai_transcription,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -206,6 +209,21 @@ async fn transcribe_with_provider(
                 Some(model.id.clone()),
                 None, // language
                 whisper_state,
+            )
+            .await?
+        }
+        "elevenlabs" => {
+            let api_key = model
+                .api_key
+                .as_ref()
+                .ok_or("ElevenLabs API key not found")?
+                .clone();
+
+            elevenlabs_transcription::transcribe_with_elevenlabs(
+                audio_data,
+                api_key,
+                Some(model.id.clone()),
+                None, // language
             )
             .await?
         }

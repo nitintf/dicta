@@ -56,15 +56,9 @@ const CLOUD_MODELS: &[(&str, &str, &str, &str)] = &[
         "google",
         "Google Cloud Speech-to-Text API - High accuracy transcription",
     ),
-    // (
-    //     "assemblyai-best",
-    //     "Best",
-    //     "assemblyai",
-    //     "AssemblyAI Best - Advanced speech recognition with speaker detection",
-    // ),
     (
-        "elevenlabs-scribe",
-        "Scribe",
+        "scribe_v1",
+        "Scribe V1",
         "elevenlabs",
         "ElevenLabs Scribe - High-quality speech-to-text with multilingual support",
     ),

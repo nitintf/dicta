@@ -36,7 +36,6 @@ async function getDefaultModels(): Promise<TranscriptionModel[]> {
 export const useModelsStore = create<ModelsState>((set, get) => ({
   models: [],
   initialized: false,
-  modelStatuses: new Map<string, ModelStatus>(),
 
   initialize: async () => {
     try {
@@ -190,11 +189,6 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
     ) {
       try {
         await invoke('stop_whisper_model')
-
-        // Update status to stopped
-        const statuses = new Map(get().modelStatuses)
-        statuses.set(previousModel.id, 'stopped')
-        set({ modelStatuses: statuses })
       } catch (error) {
         console.error('Failed to stop previous model:', error)
       }
@@ -266,11 +260,6 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
     const modelName = model.id.replace('whisper-', '')
 
     try {
-      // Update status to loading immediately
-      const statuses = new Map(get().modelStatuses)
-      statuses.set(id, 'loading')
-      set({ modelStatuses: statuses })
-
       await startLocalModelCommand(id, modelName, model.path)
 
       // Verify the model actually started by checking status after a delay
@@ -287,11 +276,6 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
         }
       }, 2000)
     } catch (error) {
-      // Update status to error on failure
-      const statuses = new Map(get().modelStatuses)
-      statuses.set(id, 'error')
-      set({ modelStatuses: statuses })
-
       console.error('Failed to start model:', error)
       throw error
     }
@@ -320,16 +304,9 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
     }
   },
 
-  getModelStatus: id => {
-    return get().modelStatuses.get(id) || 'stopped'
-  },
-
   refreshModelStatus: async id => {
     try {
       const statusInfo = await getLocalModelStatus(id)
-      const statuses = new Map(get().modelStatuses)
-      statuses.set(id, statusInfo.status)
-      set({ modelStatuses: statuses })
 
       // Also update the model's status field
       const models = get().models.map(m =>
@@ -361,15 +338,12 @@ export const initializeModelStatusListener = () => {
 
     if (modelId) {
       useModelsStore.setState(state => {
-        const statuses = new Map(state.modelStatuses)
-        statuses.set(modelId, status)
-
         // Also update the model's status field
         const models = state.models.map(m =>
           m.id === modelId ? { ...m, status } : m
         )
 
-        return { modelStatuses: statuses, models }
+        return { models }
       })
     }
   })

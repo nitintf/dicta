@@ -79,6 +79,7 @@ pub fn setup_tray(app: &App, whisper_cleanup: Arc<Mutex<WhisperManager>>) -> Res
     let _tray = TrayIconBuilder::new()
         .menu(&tray_menu)
         .icon(app.default_window_icon().unwrap().clone())
+        .icon_as_template(true)
         .on_menu_event(move |app, event| {
             handle_tray_event(app, event.id().as_ref(), whisper_cleanup.clone());
         })

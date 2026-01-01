@@ -46,7 +46,6 @@ export interface ModelStatusInfo {
 export interface ModelsState {
   models: TranscriptionModel[]
   initialized: boolean
-  modelStatuses: Map<string, ModelStatus>
   initialize: () => Promise<void>
   initActiveModel: () => Promise<TranscriptionModel | undefined>
   addModel: (model: Omit<TranscriptionModel, 'id'>) => Promise<void>
@@ -62,6 +61,5 @@ export interface ModelsState {
   syncDefaultModels: () => Promise<void>
   startLocalModel: (id: string) => Promise<void>
   stopLocalModel: (id: string) => Promise<void>
-  getModelStatus: (id: string) => ModelStatus
   refreshModelStatus: (id: string) => Promise<ModelStatus>
 }
