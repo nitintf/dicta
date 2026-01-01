@@ -5,6 +5,7 @@ use tauri::ActivationPolicy;
 
 use window::WebviewWindowExt;
 
+mod audio_devices;
 mod clipboard_utils;
 mod menu;
 mod models;
@@ -14,12 +15,17 @@ mod shortcuts;
 mod transcription;
 mod window;
 
+use audio_devices::enumerate_audio_devices;
 use models::{
     delete_whisper_model, download_whisper_model, get_all_models, get_local_model_status,
     start_local_model, stop_local_model, WhisperManager,
 };
 use secure_storage::{get_api_key, has_api_key, remove_api_key, store_api_key};
-use transcription::transcribe_and_process;
+use shortcuts::{
+    disable_global_shortcuts, enable_global_shortcuts, update_paste_shortcut,
+    update_voice_input_shortcut, ShortcutManager,
+};
+use transcription::{get_last_transcript, paste_last_transcript, transcribe_and_process};
 
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -34,8 +40,12 @@ pub fn run() {
     // Initialize WhisperManager state for persistent model loading
     let whisper_manager = Arc::new(Mutex::new(WhisperManager::new()));
 
+    // Initialize ShortcutManager for managing global shortcuts
+    let shortcut_manager = ShortcutManager::new();
+
     let mut builder = tauri::Builder::default()
         .manage(whisper_manager)
+        .manage(shortcut_manager)
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_os::init())
@@ -131,6 +141,16 @@ pub fn run() {
             get_api_key,
             remove_api_key,
             has_api_key,
+            // Audio devices
+            enumerate_audio_devices,
+            // Shortcuts management
+            update_voice_input_shortcut,
+            update_paste_shortcut,
+            enable_global_shortcuts,
+            disable_global_shortcuts,
+            // Transcription utilities
+            get_last_transcript,
+            paste_last_transcript,
         ])
         .setup(setup_fn)
         .build(tauri::generate_context!())

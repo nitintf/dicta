@@ -2,16 +2,86 @@ use crate::models::WhisperManager;
 use std::sync::Arc;
 use tauri::menu::{MenuBuilder, MenuItem, PredefinedMenuItem, SubmenuBuilder};
 use tauri::tray::TrayIconBuilder;
-use tauri::{App, AppHandle, Manager, Result};
+use tauri::{App, AppHandle, Emitter, Manager, Result};
 use tokio::sync::Mutex;
 
 /// Sets up the system tray icon and menu
 pub fn setup_tray(app: &App, whisper_cleanup: Arc<Mutex<WhisperManager>>) -> Result<()> {
-    let shortcuts_submenu = SubmenuBuilder::new(app, "Shortcuts")
+    // Microphone submenu
+    let microphone_submenu = SubmenuBuilder::new(app, "Microphone")
         .item(&MenuItem::with_id(
             app,
-            "microphone",
-            "Microphone",
+            "mic-default",
+            "Default System Microphone",
+            true,
+            None::<&str>,
+        )?)
+        .separator()
+        .item(&MenuItem::with_id(
+            app,
+            "mic-settings",
+            "Change in Settings...",
+            true,
+            None::<&str>,
+        )?)
+        .build()?;
+
+    // Language submenu with popular languages
+    let language_submenu = SubmenuBuilder::new(app, "Language")
+        .item(&MenuItem::with_id(
+            app,
+            "lang-en",
+            "🇺🇸 English",
+            true,
+            None::<&str>,
+        )?)
+        .item(&MenuItem::with_id(
+            app,
+            "lang-es",
+            "🇪🇸 Spanish",
+            true,
+            None::<&str>,
+        )?)
+        .item(&MenuItem::with_id(
+            app,
+            "lang-fr",
+            "🇫🇷 French",
+            true,
+            None::<&str>,
+        )?)
+        .item(&MenuItem::with_id(
+            app,
+            "lang-de",
+            "🇩🇪 German",
+            true,
+            None::<&str>,
+        )?)
+        .item(&MenuItem::with_id(
+            app,
+            "lang-pt",
+            "🇵🇹 Portuguese",
+            true,
+            None::<&str>,
+        )?)
+        .item(&MenuItem::with_id(
+            app,
+            "lang-zh",
+            "🇨🇳 Chinese",
+            true,
+            None::<&str>,
+        )?)
+        .item(&MenuItem::with_id(
+            app,
+            "lang-ja",
+            "🇯🇵 Japanese",
+            true,
+            None::<&str>,
+        )?)
+        .separator()
+        .item(&MenuItem::with_id(
+            app,
+            "lang-more",
+            "More languages...",
             true,
             None::<&str>,
         )?)
@@ -34,7 +104,15 @@ pub fn setup_tray(app: &App, whisper_cleanup: Arc<Mutex<WhisperManager>>) -> Res
             Some("CmdOrCtrl+Shift+V"),
         )?)
         .separator()
-        .item(&shortcuts_submenu)
+        .item(&microphone_submenu)
+        .item(&language_submenu)
+        .item(&MenuItem::with_id(
+            app,
+            "shortcuts",
+            "Shortcuts",
+            true,
+            None::<&str>,
+        )?)
         .separator()
         .item(&MenuItem::with_id(
             app,
@@ -102,19 +180,51 @@ fn handle_tray_event(app: &AppHandle, event_id: &str, whisper_cleanup: Arc<Mutex
             println!("Check for updates clicked");
         }
         "paste-last" => {
-            // TODO: Implement paste last transcript
             println!("Paste last transcript clicked");
+            let app_clone = app.clone();
+            tauri::async_runtime::spawn(async move {
+                if let Err(e) = crate::transcription::paste_last_transcript(app_clone).await {
+                    eprintln!("Failed to paste last transcript: {}", e);
+                }
+            });
         }
-        "microphone" => {
-            // TODO: Open microphone settings
-            println!("Microphone settings clicked");
+        "mic-default" => {
+            // This is just a label, no action needed
+            println!("Default microphone selected (no-op)");
         }
-        "settings-tray" => {
-            // TODO: Open settings window/page
+        "mic-settings" => {
+            // Open microphone settings in General section
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();
                 let _ = window.set_focus();
-                // TODO: Navigate to settings page
+                let _ = app.emit("open-settings", serde_json::json!({ "section": "general" }));
+            }
+        }
+        "lang-more" => {
+            // Open language settings in General section
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+                let _ = app.emit("open-settings", serde_json::json!({ "section": "general" }));
+            }
+        }
+        "shortcuts" => {
+            // Open shortcuts settings panel
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+                let _ = app.emit(
+                    "open-settings",
+                    serde_json::json!({ "section": "shortcuts" }),
+                );
+            }
+        }
+        "settings-tray" => {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+                // Emit event to open settings dialog
+                let _ = app.emit("open-settings", serde_json::json!({ "section": null }));
             }
         }
         "help-center" => {
@@ -139,12 +249,27 @@ fn handle_tray_event(app: &AppHandle, event_id: &str, whisper_cleanup: Arc<Mutex
             });
             app.exit(0);
         }
+        event_id if event_id.starts_with("lang-") => {
+            // Handle language selection
+            let code = event_id.strip_prefix("lang-").unwrap();
+            println!("Language selected: {}", code);
+
+            // For now, just open settings to the general panel
+            // TODO: In future, could directly update settings and emit event
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+                let _ = app.emit("open-settings", serde_json::json!({ "section": "general" }));
+            }
+        }
         _ => {}
     }
 }
 
 /// Sets up the macOS menu bar
 pub fn setup_menu_bar(app: &App) -> Result<()> {
+    let handle = app.app_handle().clone();
+
     let app_menu = SubmenuBuilder::new(app, "Dicta")
         .item(&MenuItem::with_id(
             app,
@@ -216,5 +341,37 @@ pub fn setup_menu_bar(app: &App) -> Result<()> {
     // Set as app menu
     app.set_menu(menu)?;
 
+    // Handle menu bar events
+    app.on_menu_event(move |app, event| {
+        handle_menu_bar_event(&handle, event.id().as_ref());
+    });
+
     Ok(())
+}
+
+/// Handles menu bar events
+fn handle_menu_bar_event(app: &AppHandle, event_id: &str) {
+    match event_id {
+        "settings" => {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+                // Emit event to open settings dialog
+                let _ = app.emit("open-settings", serde_json::json!({ "section": null }));
+            }
+        }
+        "about-dicta" => {
+            // Open settings with "about" section
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+                let _ = app.emit("open-settings", serde_json::json!({ "section": "about" }));
+            }
+        }
+        "changelog" => {
+            // TODO: Open changelog
+            println!("Changelog clicked");
+        }
+        _ => {}
+    }
 }

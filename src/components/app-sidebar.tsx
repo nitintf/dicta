@@ -9,12 +9,14 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
 
 import packageJson from '../../package.json'
+import { DictaLogo } from './ui/dicta-logo'
 import { SettingsDialog } from '../features/settings/components/settings-dialog'
 
 const menuItems = [
@@ -53,6 +55,12 @@ export function AppSidebar() {
     <>
       <Sidebar variant="sidebar" collapsible="offcanvas">
         <SidebarContent className="pt-12">
+          <SidebarHeader>
+            <h2 className="text-xl font-bold flex items-center gap-2.5 text-onboarding-text">
+              <DictaLogo size={28} className="text-onboarding-primary" />
+              Dicta
+            </h2>
+          </SidebarHeader>
           <SidebarGroup>
             <SidebarGroupContent>
               <SidebarMenu>

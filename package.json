@@ -37,6 +37,7 @@
     "@radix-ui/react-progress": "^1.1.8",
     "@radix-ui/react-separator": "^1.1.8",
     "@radix-ui/react-slot": "^1.2.4",
+    "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-table": "^8.21.3",
@@ -49,6 +50,7 @@
     "assemblyai": "^4.22.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "country-flag-icons": "^1.6.4",
     "date-fns": "^4.1.0",
     "lodash-es": "^4.17.22",
     "lucide-react": "^0.562.0",
@@ -62,6 +64,7 @@
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.1.18",
     "tauri-plugin-macos-permissions-api": "^2.3.0",
+    "use-shortcut-recorder": "^2.2.0",
     "zustand": "^5.0.9"
   },
   "devDependencies": {

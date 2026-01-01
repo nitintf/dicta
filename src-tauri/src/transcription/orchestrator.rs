@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 use tauri::{command, AppHandle, Emitter, State};
 use tauri_plugin_store::StoreExt;
 use tokio::sync::Mutex;
@@ -14,6 +15,9 @@ use super::{
     apple_speech, elevenlabs_transcription, google_transcription, local_whisper,
     openai_transcription,
 };
+
+// Global state for debouncing paste operations
+static LAST_PASTE_TIME: std::sync::Mutex<Option<Instant>> = std::sync::Mutex::new(None);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -33,6 +37,7 @@ pub struct TranscribeRequest {
     pub audio_data: Vec<u8>,
     pub timestamp: i64,
     pub duration: Option<f64>,
+    pub language: Option<String>, // ISO 639-1 language code (e.g., "en", "es", "fr")
 }
 
 /// Unified transcription command that handles the entire flow:
@@ -51,8 +56,14 @@ pub async fn transcribe_and_process(
     let selected_model = get_selected_model(&app)?;
 
     // Step 2: Transcribe using appropriate provider
-    let transcription_text =
-        transcribe_with_provider(&app, request.audio_data, &selected_model, whisper_state).await?;
+    let transcription_text = transcribe_with_provider(
+        &app,
+        request.audio_data,
+        &selected_model,
+        request.language,
+        whisper_state,
+    )
+    .await?;
 
     // Step 3: Create transcription record
     let word_count = transcription_text.split_whitespace().count();
@@ -150,11 +161,75 @@ fn save_transcription(app: &AppHandle, record: &TranscriptionRecord) -> Result<(
     Ok(())
 }
 
+/// Get the last (most recent) transcript from the store
+#[command]
+pub async fn get_last_transcript(app: AppHandle) -> Result<String, String> {
+    let store = app
+        .store("transcriptions.json")
+        .map_err(|e| format!("Failed to get transcriptions store: {}", e))?;
+
+    // Get transcriptions array and clone it to avoid lifetime issues
+    let transcriptions = store
+        .get("transcriptions")
+        .and_then(|v| v.as_array().cloned())
+        .ok_or("No transcriptions found")?;
+
+    // Get the first item (most recent)
+    let last_transcript = transcriptions
+        .first()
+        .ok_or("No transcriptions available")?;
+
+    // Extract the text field
+    let text = last_transcript
+        .get("text")
+        .and_then(|v| v.as_str())
+        .ok_or("Transcript text not found")?;
+
+    Ok(text.to_string())
+}
+
+/// Paste the last transcript using the clipboard
+#[command]
+pub async fn paste_last_transcript(app: AppHandle) -> Result<(), String> {
+    // Debounce: prevent rapid repeated calls (within 500ms)
+    const DEBOUNCE_DURATION: Duration = Duration::from_millis(500);
+
+    {
+        let mut last_time = LAST_PASTE_TIME
+            .lock()
+            .map_err(|e| format!("Failed to lock paste time: {}", e))?;
+
+        let now = Instant::now();
+
+        if let Some(last) = *last_time {
+            if now.duration_since(last) < DEBOUNCE_DURATION {
+                println!("Paste triggered too soon, debouncing");
+                return Ok(());
+            }
+        }
+
+        *last_time = Some(now);
+    }
+
+    println!("Pasting last transcript");
+
+    // Get the last transcript
+    let text = get_last_transcript(app).await?;
+
+    // Copy and paste it
+    clipboard_utils::copy_and_paste(text)
+        .await
+        .map_err(|e| format!("Failed to paste transcript: {}", e))?;
+
+    Ok(())
+}
+
 /// Route transcription to the appropriate provider
 async fn transcribe_with_provider(
     app: &AppHandle,
     audio_data: Vec<u8>,
     model: &SelectedModel,
+    language: Option<String>,
     whisper_state: State<'_, Arc<Mutex<WhisperManager>>>,
 ) -> Result<String, String> {
     let response = match model.provider.as_str() {
@@ -167,8 +242,8 @@ async fn transcribe_with_provider(
                 audio_data,
                 api_key,
                 Some(model.id.clone()),
-                None, // language
-                None, // temperature
+                language.clone(), // Use selected language
+                None,             // temperature
             )
             .await?
         }
@@ -177,25 +252,29 @@ async fn transcribe_with_provider(
                 .await
                 .map_err(|_| "Google API key not found. Please add your API key in settings.")?;
 
-            google_transcription::transcribe_with_google(
-                audio_data,
-                api_key,
-                Some("en-US".to_string()), // language code
-            )
-            .await?
+            // Convert ISO 639-1 code to Google's format (e.g., "en" -> "en-US")
+            let google_language = language
+                .clone()
+                .map(|lang| format!("{}-US", lang.to_uppercase()))
+                .or(Some("en-US".to_string()));
+
+            google_transcription::transcribe_with_google(audio_data, api_key, google_language)
+                .await?
         }
         "apple" => {
-            apple_speech::transcribe_audio_bytes(
-                audio_data,
-                Some("en-US".to_string()), // language code
-            )
-            .await?
+            // Convert ISO 639-1 code to Apple's format (e.g., "en" -> "en-US")
+            let apple_language = language
+                .clone()
+                .map(|lang| format!("{}-US", lang.to_uppercase()))
+                .or(Some("en-US".to_string()));
+
+            apple_speech::transcribe_audio_bytes(audio_data, apple_language).await?
         }
         "local-whisper" => {
             local_whisper::transcribe_with_local_whisper(
                 audio_data,
                 Some(model.id.clone()),
-                None, // language
+                language.clone(), // Use selected language
                 whisper_state,
             )
             .await?

@@ -1,6 +1,7 @@
 import { emit } from '@tauri-apps/api/event'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { useSettingsStore } from '@/features/settings/store'
 import {
   calculateDuration,
   cleanupAudioContext,
@@ -25,6 +26,7 @@ const FEEDBACK_DURATION = {
 } as const
 
 export function useVoiceRecording() {
+  const { settings } = useSettingsStore()
   const streamRef = useRef<MediaStream | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
@@ -40,7 +42,9 @@ export function useVoiceRecording() {
    */
   const startRecording = useCallback(async () => {
     try {
-      const mediaStream = await initializeMediaStream()
+      // Use selected microphone device from settings
+      const deviceId = settings.voiceInput.microphoneDeviceId
+      const mediaStream = await initializeMediaStream(deviceId)
 
       streamRef.current = mediaStream
       setStream(mediaStream)
@@ -60,7 +64,7 @@ export function useVoiceRecording() {
       console.error('Failed to start recording:', error)
       await emit('hide_voice_input')
     }
-  }, [])
+  }, [settings.voiceInput.microphoneDeviceId])
 
   /**
    * Stops recording and processes transcription

@@ -1,5 +1,7 @@
 import { invoke } from '@tauri-apps/api/core'
 
+import { useSettingsStore } from '@/features/settings/store'
+
 import { convertToWav } from './audio-converter'
 
 export interface TranscriptionRequest {
@@ -19,6 +21,10 @@ export async function processTranscription(
 ): Promise<void> {
   const { audioBlob, timestamp, duration } = request
 
+  // Get selected language from settings
+  const settings = useSettingsStore.getState().settings
+  const language = settings.transcription.language
+
   // Convert audio to WAV format (required for Whisper models)
   // Browser MediaRecorder outputs WebM/Opus, but Whisper expects WAV PCM
   const wavBlob = await convertToWav(audioBlob)
@@ -35,10 +41,11 @@ export async function processTranscription(
       audioData: Array.from(audioData),
       timestamp,
       duration,
+      language: language || null, // Pass selected language
     },
   })
 
-  console.log('Transcription completed and processed')
+  console.log('Transcription completed and processed with language:', language)
 }
 
 /**

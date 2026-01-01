@@ -55,6 +55,17 @@ pub fn parse_shortcut(shortcut_str: &str) -> Option<Shortcut> {
             "ctrl" | "control" => modifiers |= Modifiers::CONTROL,
             "shift" => modifiers |= Modifiers::SHIFT,
             "super" | "cmd" | "command" => modifiers |= Modifiers::SUPER,
+            "cmdorctrl" => {
+                // On macOS use Super (Cmd), on other platforms use Control
+                #[cfg(target_os = "macos")]
+                {
+                    modifiers |= Modifiers::SUPER;
+                }
+                #[cfg(not(target_os = "macos"))]
+                {
+                    modifiers |= Modifiers::CONTROL;
+                }
+            }
             _ => {
                 println!("Unknown modifier: {}", modifier);
                 return None;
