@@ -28,7 +28,7 @@ export interface TranscriptionModel {
   type: ModelType
   size?: string // For local models (e.g., "7B", "13B", "70B")
   requiresApiKey: boolean
-  apiKey?: string
+  hasApiKey?: boolean // Whether an API key is configured (stored securely)
   isSelected: boolean
   isEnabled: boolean
   isDownloaded?: boolean // For local models

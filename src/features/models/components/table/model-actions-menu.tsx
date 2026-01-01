@@ -47,7 +47,8 @@ export function ModelActionsMenu({
   const hasSelectionActions = !model.isSelected
   const hasConfigActions = model.requiresApiKey
   const hasLifecycleActions = isLocalModel && model.isDownloaded
-  const hasDangerActions = (isLocalModel && model.isDownloaded) || model.apiKey
+  const hasDangerActions =
+    (isLocalModel && model.isDownloaded) || model.hasApiKey
 
   return (
     <DropdownMenu>
@@ -78,7 +79,7 @@ export function ModelActionsMenu({
         {/* CONFIGURATION SECTION */}
         {hasConfigActions && (
           <>
-            {model.apiKey ? (
+            {model.hasApiKey ? (
               <DropdownMenuItem
                 onClick={() => onSetApiKey(model)}
                 className="rounded-sm"
@@ -193,7 +194,7 @@ export function ModelActionsMenu({
                 </div>
               </DropdownMenuItem>
             )}
-            {model.apiKey && (
+            {model.hasApiKey && (
               <DropdownMenuItem
                 onClick={() => onRemoveApiKey(model.id)}
                 className="rounded-sm text-destructive focus:text-destructive focus:bg-destructive/10"

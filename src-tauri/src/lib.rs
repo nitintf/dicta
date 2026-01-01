@@ -8,6 +8,7 @@ use window::WebviewWindowExt;
 mod clipboard_utils;
 mod menu;
 mod models;
+mod secure_storage;
 mod shortcut_utils;
 mod shortcuts;
 mod transcription;
@@ -17,6 +18,7 @@ use models::{
     delete_whisper_model, download_whisper_model, get_all_models, get_local_model_status,
     start_local_model, stop_local_model, WhisperManager,
 };
+use secure_storage::{get_api_key, has_api_key, remove_api_key, store_api_key};
 use transcription::transcribe_and_process;
 
 use std::sync::Arc;
@@ -124,6 +126,11 @@ pub fn run() {
             start_local_model,
             stop_local_model,
             get_local_model_status,
+            // Secure API key storage
+            store_api_key,
+            get_api_key,
+            remove_api_key,
+            has_api_key,
         ])
         .setup(setup_fn)
         .build(tauri::generate_context!())

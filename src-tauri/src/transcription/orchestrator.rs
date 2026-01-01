@@ -8,6 +8,7 @@ use uuid::Uuid;
 
 use crate::clipboard_utils;
 use crate::models::whisper_manager::WhisperManager;
+use crate::secure_storage;
 
 use super::{
     apple_speech, elevenlabs_transcription, google_transcription, local_whisper,
@@ -51,7 +52,7 @@ pub async fn transcribe_and_process(
 
     // Step 2: Transcribe using appropriate provider
     let transcription_text =
-        transcribe_with_provider(request.audio_data, &selected_model, whisper_state).await?;
+        transcribe_with_provider(&app, request.audio_data, &selected_model, whisper_state).await?;
 
     // Step 3: Create transcription record
     let word_count = transcription_text.split_whitespace().count();
@@ -112,19 +113,9 @@ fn get_selected_model(app: &AppHandle) -> Result<SelectedModel, String> {
                 .ok_or("Model provider not found")?
                 .to_string();
 
-            let api_key = model
-                .get("apiKey")
-                .and_then(|v| v.as_str())
-                .map(String::from);
-
             let path = model.get("path").and_then(|v| v.as_str()).map(String::from);
 
-            return Ok(SelectedModel {
-                id,
-                provider,
-                api_key,
-                path,
-            });
+            return Ok(SelectedModel { id, provider, path });
         }
     }
 
@@ -161,17 +152,16 @@ fn save_transcription(app: &AppHandle, record: &TranscriptionRecord) -> Result<(
 
 /// Route transcription to the appropriate provider
 async fn transcribe_with_provider(
+    app: &AppHandle,
     audio_data: Vec<u8>,
     model: &SelectedModel,
     whisper_state: State<'_, Arc<Mutex<WhisperManager>>>,
 ) -> Result<String, String> {
     let response = match model.provider.as_str() {
         "openai" => {
-            let api_key = model
-                .api_key
-                .as_ref()
-                .ok_or("OpenAI API key not found")?
-                .clone();
+            let api_key = secure_storage::get_api_key_internal(app, &model.id)
+                .await
+                .map_err(|_| "OpenAI API key not found. Please add your API key in settings.")?;
 
             openai_transcription::transcribe_with_openai(
                 audio_data,
@@ -183,11 +173,9 @@ async fn transcribe_with_provider(
             .await?
         }
         "google" => {
-            let api_key = model
-                .api_key
-                .as_ref()
-                .ok_or("Google API key not found")?
-                .clone();
+            let api_key = secure_storage::get_api_key_internal(app, &model.id)
+                .await
+                .map_err(|_| "Google API key not found. Please add your API key in settings.")?;
 
             google_transcription::transcribe_with_google(
                 audio_data,
@@ -213,11 +201,11 @@ async fn transcribe_with_provider(
             .await?
         }
         "elevenlabs" => {
-            let api_key = model
-                .api_key
-                .as_ref()
-                .ok_or("ElevenLabs API key not found")?
-                .clone();
+            let api_key = secure_storage::get_api_key_internal(app, &model.id)
+                .await
+                .map_err(|_| {
+                    "ElevenLabs API key not found. Please add your API key in settings."
+                })?;
 
             elevenlabs_transcription::transcribe_with_elevenlabs(
                 audio_data,
@@ -237,6 +225,5 @@ async fn transcribe_with_provider(
 struct SelectedModel {
     id: String,
     provider: String,
-    api_key: Option<String>,
     path: Option<String>,
 }

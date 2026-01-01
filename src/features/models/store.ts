@@ -52,21 +52,35 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
         modelsToUse = defaultModels
       } else {
         // Merge: use Rust data but preserve user settings (API keys, selection)
-        modelsToUse = defaultModels.map(rustModel => {
-          const storedModel = storedModels.find(m => m.id === rustModel.id)
+        modelsToUse = await Promise.all(
+          defaultModels.map(async rustModel => {
+            const storedModel = storedModels.find(m => m.id === rustModel.id)
 
-          if (storedModel) {
-            // Keep user settings, but use Rust's download status
-            return {
-              ...rustModel,
-              isSelected: storedModel.isSelected,
-              isEnabled: storedModel.isEnabled,
-              apiKey: storedModel.apiKey, // Preserve API key
+            // Check if this model has an API key in secure storage
+            let hasApiKey = false
+            if (rustModel.requiresApiKey) {
+              try {
+                hasApiKey = await invoke<boolean>('has_api_key', {
+                  modelId: rustModel.id,
+                })
+              } catch {
+                hasApiKey = false
+              }
             }
-          }
 
-          return rustModel
-        })
+            if (storedModel) {
+              // Keep user settings, but use Rust's download status
+              return {
+                ...rustModel,
+                isSelected: storedModel.isSelected,
+                isEnabled: storedModel.isEnabled,
+                hasApiKey,
+              }
+            }
+
+            return { ...rustModel, hasApiKey }
+          })
+        )
 
         // Add any custom models that aren't in defaults
         const customModels = storedModels.filter(
@@ -170,11 +184,39 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
   },
 
   setApiKey: async (id, apiKey) => {
-    await get().updateModel(id, { apiKey })
+    try {
+      // Store the API key securely using Tauri command
+      // This also sets hasApiKey: true in the backend
+      await invoke('store_api_key', { modelId: id, apiKey })
+
+      // Reload models from store to get updated data
+      const store = await getTauriStore()
+      const updatedModels = await store.get<TranscriptionModel[]>('models')
+      if (updatedModels) {
+        set({ models: updatedModels })
+      }
+    } catch (error) {
+      console.error('Failed to store API key:', error)
+      throw error
+    }
   },
 
   removeApiKey: async id => {
-    await get().updateModel(id, { apiKey: undefined })
+    try {
+      // Remove the API key from secure storage
+      // This also sets hasApiKey: false in the backend
+      await invoke('remove_api_key', { modelId: id })
+
+      // Reload models from store to get updated data
+      const store = await getTauriStore()
+      const updatedModels = await store.get<TranscriptionModel[]>('models')
+      if (updatedModels) {
+        set({ models: updatedModels })
+      }
+    } catch (error) {
+      console.error('Failed to remove API key:', error)
+      throw error
+    }
   },
 
   selectModel: async id => {
@@ -346,13 +388,5 @@ export const initializeModelStatusListener = () => {
         return { models }
       })
     }
-  })
-}
-
-// Set up sync between windows for model selection changes
-export const setupModelsSync = () => {
-  listen('models-changed', async () => {
-    // Reload from Tauri store when another window makes changes
-    await useModelsStore.getState().initialize()
   })
 }

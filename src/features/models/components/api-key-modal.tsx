@@ -143,6 +143,7 @@ function getProviderUrl(provider: string): string {
     google: 'https://console.cloud.google.com/apis/credentials',
     deepgram: 'https://console.deepgram.com/api-keys',
     assemblyai: 'https://www.assemblyai.com/dashboard/api-keys',
+    elevenlabs: 'https://elevenlabs.io/app/settings/api-keys',
   }
   return urls[provider] || '#'
 }

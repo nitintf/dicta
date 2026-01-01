@@ -28,7 +28,7 @@ export function ModelConfigStatus({ model }: ModelConfigStatusProps) {
 
   // API key required models
   if (model.requiresApiKey) {
-    return model.apiKey ? (
+    return model.hasApiKey ? (
       <Badge
         variant="outline"
         className="bg-green-50 text-green-700 border-green-200"
