@@ -1,4 +1,6 @@
 import { Check, RefreshCw } from 'lucide-react'
+import { useState } from 'react'
+import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -25,6 +27,8 @@ export function ModelCell({
   onRefreshStatus,
   showSelectedIndicator,
 }: ModelCellProps) {
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
   const providerInfo = getProviderInfo(model.provider)
   const isLocalModel = model.type === 'local'
   const status: ModelStatus = model.status || 'stopped'
@@ -32,8 +36,20 @@ export function ModelCell({
 
   const handleRefresh = async (e: React.MouseEvent) => {
     e.stopPropagation()
-    if (onRefreshStatus) {
-      await onRefreshStatus(model.id)
+    setIsRefreshing(true)
+    try {
+      if (onRefreshStatus) {
+        await onRefreshStatus(model.id)
+      }
+      toast.success('Model status refreshed')
+    } catch (error) {
+      toast.error('Failed to refresh model status', {
+        description: `If the problem persists, try stopping and restarting the model.`,
+        duration: 5000,
+      })
+      console.error('Error refreshing model status', error)
+    } finally {
+      setIsRefreshing(false)
     }
   }
 
@@ -103,9 +119,10 @@ export function ModelCell({
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 p-0"
+              className="h-6 w-6 p-0 cursor-pointer"
               onClick={handleRefresh}
               title="Refresh status"
+              disabled={isRefreshing}
             >
               <RefreshCw className="h-3 w-3" />
             </Button>

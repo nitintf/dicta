@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen, emit } from '@tauri-apps/api/event'
 import { Store, load } from '@tauri-apps/plugin-store'
+import { toast } from 'sonner'
 import { create } from 'zustand'
 
 import {
@@ -276,14 +277,11 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
       setTimeout(async () => {
         try {
           const statusInfo = await getLocalModelStatus(id)
-          if (
-            statusInfo.status === 'error' ||
-            statusInfo.status === 'stopped'
-          ) {
-            const statuses = new Map(get().modelStatuses)
-            statuses.set(id, 'error')
-            set({ modelStatuses: statuses })
-          }
+
+          const models = get().models.map(m =>
+            m.id === id ? { ...m, status: statusInfo.status } : m
+          )
+          set({ models })
         } catch (err) {
           console.error('Failed to verify model status:', err)
         }
@@ -303,11 +301,20 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
     try {
       await stopLocalModelCommand()
 
-      // Update status
-      const statuses = new Map(get().modelStatuses)
-      statuses.set(id, 'stopped')
-      set({ modelStatuses: statuses })
+      toast.success('Model stopped', {
+        description: 'Model has been unloaded from memory.',
+        duration: 3000,
+      })
+
+      const models = get().models.map(m =>
+        m.id === id ? { ...m, status: 'stopped' as ModelStatus } : m
+      )
+      set({ models })
     } catch (error) {
+      toast.error('Failed to stop model', {
+        description: 'The model may have already stopped or crashed.',
+        duration: 5000,
+      })
       console.error('Failed to stop model:', error)
       throw error
     }
@@ -351,8 +358,6 @@ export const initializeModelStatusListener = () => {
     modelId: string | null
   }>('local-model-status', event => {
     const { status, modelId } = event.payload
-
-    console.log('Local model status:', status, modelId)
 
     if (modelId) {
       useModelsStore.setState(state => {

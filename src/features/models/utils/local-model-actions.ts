@@ -30,6 +30,11 @@ export async function startLocalModel(
       modelName,
       modelPath,
     })
+
+    toast.success('Model started', {
+      description: 'Model is now loaded into memory and ready to use.',
+      duration: 3000,
+    })
   } catch (error) {
     const errorMsg = String(error)
 
@@ -71,20 +76,7 @@ export async function startLocalModel(
  * Stops (unloads) the current local model from memory
  */
 export async function stopLocalModel(): Promise<void> {
-  try {
-    await invoke('stop_local_model')
-    toast.success('Model stopped', {
-      description: 'Model has been unloaded from memory.',
-      duration: 3000,
-    })
-  } catch (error) {
-    const errorMsg = String(error)
-    toast.error('Failed to stop model', {
-      description: `Error: ${errorMsg}. The model may have already stopped or crashed.`,
-      duration: 5000,
-    })
-    throw error
-  }
+  await invoke('stop_local_model')
 }
 
 /**
