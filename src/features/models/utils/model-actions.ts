@@ -3,48 +3,57 @@ import { toast } from 'sonner'
 
 import { initializeModels } from '..'
 
+import type { TranscriptionModel } from '../types'
+
 /**
- * Downloads a Whisper model and auto-selects it
+ * Downloads a local model and auto-selects it
  */
 export async function downloadModel(
-  modelName: string,
+  model: TranscriptionModel,
   selectModel: (id: string) => Promise<void>
 ): Promise<void> {
-  const downloadPromise = invoke<string>('download_whisper_model', {
-    modelName,
+  if (!model.downloadUrl || !model.filename || !model.engine) {
+    toast.error('Invalid model configuration')
+    return
+  }
+
+  const downloadPromise = invoke<string>('download_local_model', {
+    modelId: model.id,
+    downloadUrl: model.downloadUrl,
+    filename: model.filename,
+    engineType: model.engine,
   })
 
   toast.promise(downloadPromise, {
-    loading: `Downloading ${modelName} model...`,
+    loading: `Downloading ${model.name} model...`,
     success: async () => {
       // Reload models to update state
       await initializeModels()
 
       // Auto-select and start the downloaded model
-      const modelId = `whisper-${modelName}`
-      await selectModel(modelId)
+      await selectModel(model.id)
 
-      return `${modelName} model ready to use!`
+      return `${model.name} model ready to use!`
     },
-    error: error => `Failed to download ${modelName}: ${error}`,
+    error: error => `Failed to download ${model.name}: ${error}`,
   })
 }
 
 /**
- * Deletes a Whisper model
+ * Deletes a local model
  */
-export async function deleteModel(
-  modelId: string,
-  modelName: string,
-  removeModel: (id: string) => Promise<void>
-): Promise<void> {
+export async function deleteModel(model: TranscriptionModel): Promise<void> {
+  if (!model.path) {
+    toast.error('Model path not found')
+    return
+  }
+
   try {
-    await invoke('delete_whisper_model', { modelName })
-    toast.success(`${modelName} model deleted`)
-    await removeModel(modelId)
+    await invoke('delete_local_model', { modelPath: model.path })
+    toast.success(`${model.name} model deleted`)
     await initializeModels()
   } catch (error) {
-    toast.error(`Failed to delete ${modelName}: ${error}`)
+    toast.error(`Failed to delete ${model.name}: ${error}`)
     throw error
   }
 }

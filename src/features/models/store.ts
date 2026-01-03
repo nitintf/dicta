@@ -69,12 +69,14 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
             }
 
             if (storedModel) {
-              // Keep user settings, but use Rust's download status
+              // Keep user settings and API key, but use Rust's download status
               return {
                 ...rustModel,
                 isSelected: storedModel.isSelected,
                 isEnabled: storedModel.isEnabled,
                 hasApiKey,
+                // Preserve encrypted API key from stored model
+                ...(storedModel.apiKey ? { apiKey: storedModel.apiKey } : {}),
               }
             }
 
@@ -89,30 +91,30 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
         modelsToUse = [...modelsToUse, ...customModels]
       }
 
-      // Save the synced models
-      await store.set('models', modelsToUse)
+      // Check runtime status for all local models
+      const modelsWithStatus = await Promise.all(
+        modelsToUse.map(async model => {
+          if (model.type === 'local' && model.isDownloaded) {
+            try {
+              const statusInfo = await invoke<{ status: string }>(
+                'get_local_model_status',
+                {
+                  modelId: model.id,
+                }
+              )
+              return { ...model, status: statusInfo.status as ModelStatus }
+            } catch {
+              return model
+            }
+          }
+          return model
+        })
+      )
+
+      await store.set('models', modelsWithStatus)
       await store.save()
 
-      set({ models: modelsToUse, initialized: true })
-
-      // Auto-start selected local whisper model on app startup
-      const selectedModel = modelsToUse.find(m => m.isSelected)
-      if (
-        selectedModel?.provider === 'local-whisper' &&
-        selectedModel.isDownloaded &&
-        selectedModel.path
-      ) {
-        try {
-          const modelName = selectedModel.id.replace('whisper-', '')
-          await invoke('start_whisper_model', {
-            modelName,
-            modelPath: selectedModel.path,
-          })
-          console.log('Auto-started local model:', selectedModel.name)
-        } catch (error) {
-          console.error('Failed to auto-start local model on startup:', error)
-        }
-      }
+      set({ models: modelsWithStatus, initialized: true })
     } catch (error) {
       console.error('Error initializing models store:', error)
       set({ models: [], initialized: true })
@@ -224,11 +226,35 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
     const previousModel = currentModels.find(m => m.isSelected)
     const newModel = currentModels.find(m => m.id === id)
 
-    // Stop previous local whisper model if switching away
+    if (!newModel) {
+      toast.error('Model not found')
+      return
+    }
+
+    // Validate cloud models have API key
     if (
-      previousModel?.provider === 'local-whisper' &&
-      previousModel.id !== id
+      newModel.type === 'cloud' &&
+      newModel.requiresApiKey &&
+      !newModel.hasApiKey
     ) {
+      toast.error('API key required', {
+        description: `Please add an API key for ${newModel.name} before selecting it.`,
+        duration: 4000,
+      })
+      return
+    }
+
+    // Validate local models are downloaded
+    if (newModel.type === 'local' && !newModel.isDownloaded) {
+      toast.error('Model not downloaded', {
+        description: `Please download ${newModel.name} before selecting it.`,
+        duration: 4000,
+      })
+      return
+    }
+
+    // Stop previous local model if switching away
+    if (previousModel?.type === 'local' && previousModel.id !== id) {
       try {
         await invoke('stop_whisper_model')
       } catch (error) {
@@ -242,8 +268,7 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
       isSelected: model.id === id,
       // Set status to stopped if it was the previous model
       status:
-        model.id === previousModel?.id &&
-        previousModel?.provider === 'local-whisper'
+        model.id === previousModel?.id && previousModel?.type === 'local'
           ? ('stopped' as ModelStatus)
           : model.status,
     }))
@@ -261,12 +286,8 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
 
     set({ models: newModels })
 
-    // Auto-start new local whisper model if it's downloaded
-    if (
-      newModel?.provider === 'local-whisper' &&
-      newModel.isDownloaded &&
-      newModel.path
-    ) {
+    // Auto-start new local model if it's downloaded
+    if (newModel?.type === 'local' && newModel.isDownloaded && newModel.path) {
       await get().startLocalModel(id)
     }
   },
@@ -294,7 +315,7 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
 
   startLocalModel: async id => {
     const model = get().models.find(m => m.id === id)
-    if (!model || model.type !== 'local' || !model.path) {
+    if (!model || model.type !== 'local' || !model.path || !model.engine) {
       throw new Error('Invalid model for starting')
     }
 
@@ -302,7 +323,7 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
     const modelName = model.id.replace('whisper-', '')
 
     try {
-      await startLocalModelCommand(id, modelName, model.path)
+      await startLocalModelCommand(id, modelName, model.path, model.engine)
 
       // Verify the model actually started by checking status after a delay
       setTimeout(async () => {
@@ -368,7 +389,8 @@ export const initializeModels = async () => {
   await useModelsStore.getState().initialize()
 }
 
-// Initialize model status listener
+export const initializeUserFirstLaunch = async () => {}
+
 export const initializeModelStatusListener = () => {
   // Listen for new generic local model status events
   listen<{

@@ -18,17 +18,20 @@ export interface LocalModelStatusInfo {
  * @param modelId - The model identifier
  * @param modelName - The model name
  * @param modelPath - The full path to the model file
+ * @param engineType - The engine type (e.g., "whisper", "llama")
  */
 export async function startLocalModel(
   modelId: string,
   modelName: string,
-  modelPath: string
+  modelPath: string,
+  engineType: string
 ): Promise<void> {
   try {
     await invoke('start_local_model', {
       modelId,
       modelName,
       modelPath,
+      engineType,
     })
 
     toast.success('Model started', {

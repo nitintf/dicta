@@ -1,4 +1,4 @@
-export type ModelType = 'cloud' | 'local' | 'apple'
+export type ModelType = 'cloud' | 'local'
 
 export type ModelStatus = 'stopped' | 'loading' | 'ready' | 'error'
 
@@ -10,7 +10,6 @@ export type ModelProvider =
   | 'elevenlabs'
   | 'ollama'
   | 'lmstudio'
-  | 'apple'
   | 'local-whisper'
 
 export interface ModelCapabilities {
@@ -26,9 +25,11 @@ export interface TranscriptionModel {
   name: string
   provider: ModelProvider
   type: ModelType
+  engine?: string // Engine type for local models (e.g., "whisper", "llama")
   size?: string // For local models (e.g., "7B", "13B", "70B")
   requiresApiKey: boolean
   hasApiKey?: boolean // Whether an API key is configured (stored securely)
+  apiKey?: string // Encrypted API key (stored securely in models.json)
   isSelected: boolean
   isEnabled: boolean
   isDownloaded?: boolean // For local models
@@ -36,6 +37,8 @@ export interface TranscriptionModel {
   description?: string
   status?: ModelStatus // Runtime status for local models
   capabilities?: ModelCapabilities // Model capabilities and best use cases
+  downloadUrl?: string // Download URL for local models
+  filename?: string // Filename for local models
 }
 
 export interface ModelStatusInfo {

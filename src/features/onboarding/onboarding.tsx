@@ -1,17 +1,17 @@
 import { OnboardingLayout } from './components/onboarding-layout'
 import {
   WelcomeStep,
+  ModelDownloadStep,
   MicrophoneStep,
   AccessibilityStep,
-  ScreenRecordingStep,
 } from './components/steps'
 import { useOnboarding } from './hooks/use-onboarding'
 
 const stepComponents = [
   WelcomeStep,
+  ModelDownloadStep,
   MicrophoneStep,
   AccessibilityStep,
-  ScreenRecordingStep,
 ]
 
 export function OnboardingPage() {

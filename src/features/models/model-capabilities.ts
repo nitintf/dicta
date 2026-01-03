@@ -138,8 +138,6 @@ export function getProviderCapabilitySummary(provider: ModelProvider): string {
       return 'Advanced features including sentiment analysis'
     case 'elevenlabs':
       return 'High-quality multilingual transcription'
-    case 'apple':
-      return 'On-device, privacy-focused, works offline'
     case 'local-whisper':
       return 'Fully offline, privacy-first, no API costs'
     default:

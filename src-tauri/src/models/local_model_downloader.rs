@@ -3,31 +3,23 @@ use std::path::PathBuf;
 use tauri::{command, AppHandle, Emitter, Manager};
 use tokio::io::AsyncWriteExt;
 
-use super::models_registry::WHISPER_MODELS;
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DownloadProgress {
     pub downloaded: u64,
     pub total: u64,
     pub percentage: f64,
-    pub model: String,
+    pub model_id: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ModelInfo {
-    pub name: String,
-    pub size: String,
-    pub downloaded: bool,
-    pub path: Option<String>,
-}
-
-fn get_models_dir(app: &AppHandle) -> Result<PathBuf, String> {
+/// Get the base directory for storing local models
+fn get_models_base_dir(app: &AppHandle) -> Result<PathBuf, String> {
     let app_data_dir = app
         .path()
         .app_data_dir()
         .map_err(|e| format!("Failed to get app data dir: {}", e))?;
 
-    let models_dir = app_data_dir.join("whisper_models");
+    let models_dir = app_data_dir.join("local_models");
 
     // Create directory if it doesn't exist
     std::fs::create_dir_all(&models_dir)
@@ -36,17 +28,34 @@ fn get_models_dir(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(models_dir)
 }
 
-#[command]
-pub async fn download_whisper_model(app: AppHandle, model_name: String) -> Result<String, String> {
-    // Find the model URL
-    let model_info = WHISPER_MODELS
-        .iter()
-        .find(|(name, _, _)| *name == model_name)
-        .ok_or_else(|| format!("Model '{}' not found", model_name))?;
+/// Get the directory for a specific engine type
+fn get_engine_dir(app: &AppHandle, engine_type: &str) -> Result<PathBuf, String> {
+    let base_dir = get_models_base_dir(app)?;
+    let engine_dir = base_dir.join(engine_type);
 
-    let (_name, url, _size) = model_info;
-    let models_dir = get_models_dir(&app)?;
-    let model_path = models_dir.join(format!("ggml-{}.bin", model_name));
+    std::fs::create_dir_all(&engine_dir)
+        .map_err(|e| format!("Failed to create engine directory: {}", e))?;
+
+    Ok(engine_dir)
+}
+
+/// Download a local model from a URL
+///
+/// # Arguments
+/// * `model_id` - The model identifier (e.g., "whisper-tiny", "llama-3-8b")
+/// * `download_url` - The URL to download the model from
+/// * `filename` - The filename to save the model as
+/// * `engine_type` - The engine type (e.g., "whisper", "llama")
+#[command]
+pub async fn download_local_model(
+    app: AppHandle,
+    model_id: String,
+    download_url: String,
+    filename: String,
+    engine_type: String,
+) -> Result<String, String> {
+    let engine_dir = get_engine_dir(&app, &engine_type)?;
+    let model_path = engine_dir.join(&filename);
 
     // Check if already downloaded
     if model_path.exists() {
@@ -56,7 +65,7 @@ pub async fn download_whisper_model(app: AppHandle, model_name: String) -> Resul
     // Download the model with progress tracking
     let client = reqwest::Client::new();
     let response = client
-        .get(*url)
+        .get(&download_url)
         .send()
         .await
         .map_err(|e| format!("Failed to start download: {}", e))?;
@@ -97,10 +106,10 @@ pub async fn download_whisper_model(app: AppHandle, model_name: String) -> Resul
                 downloaded,
                 total: total_size,
                 percentage,
-                model: model_name.clone(),
+                model_id: model_id.clone(),
             };
 
-            let _ = app.emit("whisper-download-progress", progress);
+            let _ = app.emit("local-model-download-progress", progress);
         }
     }
 
@@ -109,9 +118,9 @@ pub async fn download_whisper_model(app: AppHandle, model_name: String) -> Resul
         downloaded,
         total: total_size,
         percentage: 100.0,
-        model: model_name.clone(),
+        model_id: model_id.clone(),
     };
-    let _ = app.emit("whisper-download-progress", progress);
+    let _ = app.emit("local-model-download-progress", progress);
 
     file.flush()
         .await
@@ -120,13 +129,16 @@ pub async fn download_whisper_model(app: AppHandle, model_name: String) -> Resul
     Ok(model_path.to_string_lossy().to_string())
 }
 
+/// Delete a local model file
+///
+/// # Arguments
+/// * `model_path` - The full path to the model file to delete
 #[command]
-pub async fn delete_whisper_model(app: AppHandle, model_name: String) -> Result<(), String> {
-    let models_dir = get_models_dir(&app)?;
-    let model_path = models_dir.join(format!("ggml-{}.bin", model_name));
+pub async fn delete_local_model(model_path: String) -> Result<(), String> {
+    let path = PathBuf::from(&model_path);
 
-    if model_path.exists() {
-        std::fs::remove_file(&model_path).map_err(|e| format!("Failed to delete model: {}", e))?;
+    if path.exists() {
+        std::fs::remove_file(&path).map_err(|e| format!("Failed to delete model: {}", e))?;
     }
 
     Ok(())

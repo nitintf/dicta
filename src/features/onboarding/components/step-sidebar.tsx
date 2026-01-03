@@ -1,4 +1,4 @@
-import { Mic, Lock, Monitor, Rocket } from 'lucide-react'
+import { Mic, Lock, Monitor, Rocket, Download } from 'lucide-react'
 import { motion } from 'motion/react'
 
 import { DictaLogo } from '@/components/ui/dicta-logo'
@@ -12,6 +12,7 @@ const iconMap = {
   lock: Lock,
   monitor: Monitor,
   rocket: Rocket,
+  download: Download,
 }
 
 interface StepSidebarProps {

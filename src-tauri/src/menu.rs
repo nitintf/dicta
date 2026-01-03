@@ -1,5 +1,5 @@
 use crate::audio_devices::enumerate_audio_devices;
-use crate::models::WhisperManager;
+use crate::models::LocalModelManager;
 use serde_json::json;
 use std::sync::Arc;
 use tauri::menu::{MenuBuilder, MenuItem, PredefinedMenuItem, SubmenuBuilder};
@@ -9,7 +9,7 @@ use tauri_plugin_store::StoreExt;
 use tokio::sync::Mutex;
 
 /// Sets up the system tray icon and menu
-pub fn setup_tray(app: &App, whisper_cleanup: Arc<Mutex<WhisperManager>>) -> Result<()> {
+pub fn setup_tray(app: &App, model_manager_cleanup: Arc<Mutex<LocalModelManager>>) -> Result<()> {
     // Get available audio devices
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let devices = runtime
@@ -136,7 +136,7 @@ pub fn setup_tray(app: &App, whisper_cleanup: Arc<Mutex<WhisperManager>>) -> Res
         .icon(app.default_window_icon().unwrap().clone())
         .icon_as_template(true)
         .on_menu_event(move |app, event| {
-            handle_tray_event(app, event.id().as_ref(), whisper_cleanup.clone());
+            handle_tray_event(app, event.id().as_ref(), model_manager_cleanup.clone());
         })
         .build(app)?;
 
@@ -188,7 +188,11 @@ fn set_microphone_device(app: &AppHandle, device_id: Option<String>) -> Result<(
 }
 
 /// Handles tray menu events
-fn handle_tray_event(app: &AppHandle, event_id: &str, whisper_cleanup: Arc<Mutex<WhisperManager>>) {
+fn handle_tray_event(
+    app: &AppHandle,
+    event_id: &str,
+    model_manager_cleanup: Arc<Mutex<LocalModelManager>>,
+) {
     match event_id {
         "home" => {
             if let Some(window) = app.get_webview_window("main") {
@@ -250,12 +254,12 @@ fn handle_tray_event(app: &AppHandle, event_id: &str, whisper_cleanup: Arc<Mutex
             println!("General feedback clicked");
         }
         "quit" => {
-            // Cleanup whisper model before exit
+            // Cleanup local model before exit
             let runtime = tokio::runtime::Runtime::new().unwrap();
             runtime.block_on(async {
-                let mut manager = whisper_cleanup.lock().await;
+                let mut manager = model_manager_cleanup.lock().await;
                 manager.unload_model();
-                println!("Whisper model stopped on app exit");
+                println!("Local model stopped on app exit");
             });
             app.exit(0);
         }

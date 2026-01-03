@@ -5,7 +5,7 @@ export interface OnboardingStep {
   id: string
   title: string
   description: string
-  icon: 'mic' | 'lock' | 'monitor' | 'rocket'
+  icon: 'mic' | 'lock' | 'monitor' | 'rocket' | 'download'
   completed: boolean
 }
 
@@ -30,6 +30,13 @@ const initialSteps: OnboardingStep[] = [
     completed: false,
   },
   {
+    id: 'model-download',
+    title: 'Download AI Model',
+    description: 'Required for offline transcription',
+    icon: 'download',
+    completed: false,
+  },
+  {
     id: 'microphone',
     title: 'Microphone Access',
     description: 'Required for voice input',
@@ -41,13 +48,6 @@ const initialSteps: OnboardingStep[] = [
     title: 'Accessibility Access',
     description: 'Required for global shortcuts',
     icon: 'lock',
-    completed: false,
-  },
-  {
-    id: 'screen-recording',
-    title: 'Screen Recording',
-    description: 'Optional for advanced features',
-    icon: 'monitor',
     completed: false,
   },
 ]

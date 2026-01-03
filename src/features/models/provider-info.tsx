@@ -1,5 +1,3 @@
-import { Apple } from 'lucide-react'
-
 import { cn } from '@/lib/cn'
 
 import { useTheme } from '../../providers/theme-provider'
@@ -81,12 +79,6 @@ export const getProviderInfo = (provider: ModelProvider): ProviderInfo => {
         name: 'LM Studio',
         icon: <ProviderLogo provider="lmstudio" />,
         color: 'text-gray-700',
-      }
-    case 'apple':
-      return {
-        name: 'Apple',
-        icon: <Apple className="w-4 h-4 dark:invert" />,
-        color: 'text-gray-800',
       }
     case 'local-whisper':
       return {

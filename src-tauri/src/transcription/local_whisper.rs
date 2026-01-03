@@ -3,7 +3,7 @@ use tauri::{command, State};
 use tokio::sync::Mutex;
 
 use super::TranscriptionResponse;
-use crate::models::whisper_manager::WhisperManager;
+use crate::models::LocalModelManager;
 
 /// Converts WAV audio bytes to f32 samples for whisper-rs
 ///
@@ -38,35 +38,33 @@ fn convert_audio_to_samples(audio_data: Vec<u8>) -> Result<Vec<f32>, String> {
     samples.map_err(|e| format!("Failed to read audio samples: {}", e))
 }
 
-/// Transcribes audio using the loaded local Whisper model
+/// Transcribes audio using the loaded local model
 ///
-/// This command uses the WhisperManager to transcribe audio with the
+/// This command uses the LocalModelManager to transcribe audio with the
 /// currently loaded model. The model must be started first using
-/// `start_whisper_model`.
+/// `start_local_model`.
 ///
 /// # Arguments
 /// * `audio_data` - Raw audio bytes in WAV format
 /// * `model` - Model name (currently ignored, uses loaded model)
 /// * `language` - Optional language code (e.g., "en", "es")
-/// * `state` - Shared WhisperManager state
+/// * `state` - Shared LocalModelManager state
 #[command]
 pub async fn transcribe_with_local_whisper(
     audio_data: Vec<u8>,
     model: Option<String>,
     language: Option<String>,
-    state: State<'_, Arc<Mutex<WhisperManager>>>,
+    state: State<'_, Arc<Mutex<LocalModelManager>>>,
 ) -> Result<TranscriptionResponse, String> {
     // Note: The model parameter is kept for API compatibility but not used
-    // The loaded model from WhisperManager is used instead
+    // The loaded model from LocalModelManager is used instead
     let _ = model;
 
-    // Convert WAV audio to f32 samples
-    let samples = convert_audio_to_samples(audio_data)?;
-
     // Transcribe using the loaded model
+    // The LocalModelManager handles audio conversion internally
     let mut manager = state.lock().await;
     let text = manager
-        .transcribe(samples, language.clone())
+        .transcribe(audio_data, language.clone())
         .map_err(|e| e.to_string())?;
 
     Ok(TranscriptionResponse {

@@ -25,7 +25,6 @@ export function ModelsPage() {
     toggleEnabled,
     setApiKey,
     removeApiKey,
-    removeModel,
     syncDefaultModels,
     refreshModelStatus,
     startLocalModel,
@@ -47,10 +46,10 @@ export function ModelsPage() {
   }, [initialized])
 
   const handleDownloadModel = useCallback(
-    async (modelName: string) => {
-      setDownloading(modelName)
+    async (model: TranscriptionModel) => {
+      setDownloading(model.id)
       try {
-        await downloadModel(modelName, selectModel)
+        await downloadModel(model, selectModel)
       } finally {
         setDownloading(null)
       }
@@ -58,12 +57,9 @@ export function ModelsPage() {
     [selectModel]
   )
 
-  const handleDeleteModel = useCallback(
-    async (modelId: string, modelName: string) => {
-      await deleteModel(modelId, modelName, removeModel)
-    },
-    [removeModel]
-  )
+  const handleDeleteModel = useCallback(async (model: TranscriptionModel) => {
+    await deleteModel(model)
+  }, [])
 
   const handleSyncModels = async () => {
     await syncModels(syncDefaultModels)

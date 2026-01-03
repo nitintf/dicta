@@ -6,7 +6,6 @@ use tauri::{command, AppHandle, Manager};
 pub enum ModelType {
     Cloud,
     Local,
-    Apple,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -19,8 +18,6 @@ pub enum ModelProvider {
     AssemblyAI,
     #[serde(rename = "elevenlabs")]
     ElevenLabs,
-    #[serde(rename = "apple")]
-    Apple,
     #[serde(rename = "local-whisper")]
     LocalWhisper,
 }
@@ -33,6 +30,9 @@ pub struct ModelDefinition {
     pub provider: ModelProvider,
     #[serde(rename = "type")]
     pub model_type: ModelType,
+    /// Engine type for local models (e.g., "whisper", "llama")
+    /// None for cloud models
+    pub engine: Option<String>,
     pub size: Option<String>,
     pub requires_api_key: bool,
     pub is_selected: bool,
@@ -40,6 +40,10 @@ pub struct ModelDefinition {
     pub is_downloaded: Option<bool>,
     pub path: Option<String>,
     pub description: Option<String>,
+    /// Download URL for local models
+    pub download_url: Option<String>,
+    /// Filename to save the model as (for local models)
+    pub filename: Option<String>,
 }
 
 // Cloud models
@@ -88,20 +92,6 @@ pub const WHISPER_MODELS: &[(&str, &str, &str)] = &[
     ),
 ];
 
-fn get_models_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
-
-    let models_dir = app_data_dir.join("whisper_models");
-
-    std::fs::create_dir_all(&models_dir)
-        .map_err(|e| format!("Failed to create models directory: {}", e))?;
-
-    Ok(models_dir)
-}
-
 #[command]
 pub async fn get_all_models(app: AppHandle) -> Result<Vec<ModelDefinition>, String> {
     let mut models = Vec::new();
@@ -119,6 +109,7 @@ pub async fn get_all_models(app: AppHandle) -> Result<Vec<ModelDefinition>, Stri
                 _ => continue,
             },
             model_type: ModelType::Cloud,
+            engine: None, // Cloud models don't use local engines
             size: None,
             requires_api_key: true,
             is_selected: false,
@@ -126,14 +117,22 @@ pub async fn get_all_models(app: AppHandle) -> Result<Vec<ModelDefinition>, Stri
             is_downloaded: None,
             path: None,
             description: Some(description.to_string()),
+            download_url: None,
+            filename: None,
         });
     }
 
     // Add local Whisper models with download status
-    let models_dir = get_models_dir(&app)?;
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
 
-    for (name, _url, size) in WHISPER_MODELS {
-        let model_path = models_dir.join(format!("ggml-{}.bin", name));
+    let whisper_dir = app_data_dir.join("local_models").join("whisper");
+
+    for (name, url, size) in WHISPER_MODELS {
+        let filename = format!("ggml-{}.bin", name);
+        let model_path = whisper_dir.join(&filename);
         let downloaded = model_path.exists();
 
         let model_name = format!(
@@ -146,9 +145,11 @@ pub async fn get_all_models(app: AppHandle) -> Result<Vec<ModelDefinition>, Stri
             name: model_name.clone(),
             provider: ModelProvider::LocalWhisper,
             model_type: ModelType::Local,
+            engine: Some("whisper".to_string()), // Uses Whisper engine
             size: Some(size.to_string()),
             requires_api_key: false,
-            is_selected: false,
+            // Set whisper-tiny as default selected
+            is_selected: *name == "tiny",
             is_enabled: true,
             is_downloaded: Some(downloaded),
             path: if downloaded {
@@ -160,23 +161,10 @@ pub async fn get_all_models(app: AppHandle) -> Result<Vec<ModelDefinition>, Stri
                 "{} model - Runs locally without internet",
                 model_name
             )),
+            download_url: Some(url.to_string()),
+            filename: Some(filename),
         });
     }
-
-    // Add Apple Speech Recognition
-    models.push(ModelDefinition {
-        id: "apple-speech".to_string(),
-        name: "Apple Speech Recognition".to_string(),
-        provider: ModelProvider::Apple,
-        model_type: ModelType::Apple,
-        size: None,
-        requires_api_key: false,
-        is_selected: true, // Default selected
-        is_enabled: true,
-        is_downloaded: None,
-        path: None,
-        description: Some("Built-in macOS speech recognition - works offline".to_string()),
-    });
 
     Ok(models)
 }

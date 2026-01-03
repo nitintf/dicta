@@ -3,10 +3,11 @@ use std::sync::Arc;
 use tauri::{command, AppHandle, Emitter, State};
 use tokio::sync::Mutex;
 
-use super::whisper_manager::{ModelStatus, WhisperManager};
+use super::engines::{ModelConfig, ModelStatus};
+use super::local_model_manager::LocalModelManager;
 
 /// Shared state type for local model manager
-pub type LocalModelState = Arc<Mutex<WhisperManager>>;
+pub type LocalModelState = Arc<Mutex<LocalModelManager>>;
 
 /// Information about the current local model status
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -20,9 +21,10 @@ pub struct LocalModelStatusInfo {
 /// Start (load) a local model into memory
 ///
 /// # Arguments
-/// * `model_id` - The model identifier (e.g., "whisper-tiny")
-/// * `model_name` - The model name (e.g., "tiny", "base")
+/// * `model_id` - The model identifier (e.g., "whisper-tiny", "llama-3-8b")
+/// * `model_name` - The model name (e.g., "tiny", "base", "llama-3-8b")
 /// * `model_path` - The full path to the model file
+/// * `engine_type` - The engine to use (e.g., "whisper", "llama")
 /// * `state` - Shared local model manager state
 /// * `app` - Tauri app handle for emitting events
 #[command]
@@ -30,13 +32,10 @@ pub async fn start_local_model(
     model_id: String,
     model_name: String,
     model_path: String,
+    engine_type: String,
     state: State<'_, LocalModelState>,
     app: AppHandle,
 ) -> Result<(), String> {
-    if !model_id.starts_with("whisper-") {
-        return Err(format!("Unsupported model type: {}", model_id));
-    }
-
     let mut manager = state.lock().await;
 
     // Emit loading event
@@ -49,8 +48,15 @@ pub async fn start_local_model(
         },
     );
 
-    // Load the model
-    let result = manager.load_model(model_name.clone(), model_path);
+    // Create model configuration
+    let config = ModelConfig {
+        model_path,
+        model_name: model_name.clone(),
+        language: None,
+    };
+
+    // Load the model using the specified engine
+    let result = manager.load_model(&engine_type, config);
 
     // Emit result event
     match result {
@@ -74,7 +80,7 @@ pub async fn start_local_model(
                     model_id: Some(model_id),
                 },
             );
-            Err(e.to_string())
+            Err(e)
         }
     }
 }
@@ -119,16 +125,22 @@ pub async fn get_local_model_status(
 ) -> Result<LocalModelStatusInfo, String> {
     let manager = state.lock().await;
 
+    let model_info = manager.get_loaded_model_info();
+
     // If a specific model_id is requested, check if it matches the loaded model
     if let Some(requested_id) = model_id {
-        if let Some(loaded_name) = manager.get_loaded_model_name() {
-            // Check if the loaded model matches the requested ID
-            let loaded_id = format!("whisper-{}", loaded_name);
-            if loaded_id == requested_id {
+        // Check if we have a loaded model and it matches
+        if let Some(info) = model_info {
+            // For now, we compare by model name since we don't store the full ID
+            // This works for whisper models like "whisper-tiny" -> name is "tiny"
+            // Future: Consider storing the full model_id in ModelInfo
+            let matches = requested_id.contains(&info.name);
+
+            if matches {
                 return Ok(LocalModelStatusInfo {
                     status: manager.get_status(),
-                    model_name: Some(loaded_name),
-                    model_id: Some(loaded_id),
+                    model_name: Some(info.name),
+                    model_id: Some(requested_id),
                 });
             }
         }
@@ -142,12 +154,9 @@ pub async fn get_local_model_status(
     }
 
     // Return current loaded model status
-    let loaded_name = manager.get_loaded_model_name();
-    let loaded_id = loaded_name.as_ref().map(|name| format!("whisper-{}", name));
-
     Ok(LocalModelStatusInfo {
         status: manager.get_status(),
-        model_name: loaded_name,
-        model_id: loaded_id,
+        model_name: model_info.as_ref().map(|i| i.name.clone()),
+        model_id: None, // We don't have the full model ID without the request parameter
     })
 }

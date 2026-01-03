@@ -8,13 +8,10 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::clipboard_utils;
-use crate::models::whisper_manager::WhisperManager;
+use crate::models::LocalModelManager;
 use crate::secure_storage;
 
-use super::{
-    apple_speech, elevenlabs_transcription, google_transcription, local_whisper,
-    openai_transcription,
-};
+use super::{elevenlabs_transcription, google_transcription, local_whisper, openai_transcription};
 
 // Global state for debouncing paste operations
 static LAST_PASTE_TIME: std::sync::Mutex<Option<Instant>> = std::sync::Mutex::new(None);
@@ -50,7 +47,7 @@ pub struct TranscribeRequest {
 pub async fn transcribe_and_process(
     request: TranscribeRequest,
     app: AppHandle,
-    whisper_state: State<'_, Arc<Mutex<WhisperManager>>>,
+    local_model_state: State<'_, Arc<Mutex<LocalModelManager>>>,
 ) -> Result<Option<TranscriptionRecord>, String> {
     // Step 1: Get selected model from store
     let selected_model = get_selected_model(&app)?;
@@ -67,7 +64,7 @@ pub async fn transcribe_and_process(
         request.audio_data,
         &selected_model,
         request.language,
-        whisper_state,
+        local_model_state,
     )
     .await?;
 
@@ -284,7 +281,7 @@ async fn transcribe_with_provider(
     audio_data: Vec<u8>,
     model: &SelectedModel,
     language: Option<String>,
-    whisper_state: State<'_, Arc<Mutex<WhisperManager>>>,
+    local_model_state: State<'_, Arc<Mutex<LocalModelManager>>>,
 ) -> Result<String, String> {
     let response = match model.provider.as_str() {
         "openai" => {
@@ -315,21 +312,12 @@ async fn transcribe_with_provider(
             google_transcription::transcribe_with_google(audio_data, api_key, google_language)
                 .await?
         }
-        "apple" => {
-            // Convert ISO 639-1 code to Apple's format (e.g., "en" -> "en-US")
-            let apple_language = language
-                .clone()
-                .map(|lang| format!("{}-US", lang.to_uppercase()))
-                .or(Some("en-US".to_string()));
-
-            apple_speech::transcribe_audio_bytes(audio_data, apple_language).await?
-        }
         "local-whisper" => {
             local_whisper::transcribe_with_local_whisper(
                 audio_data,
                 Some(model.id.clone()),
                 language.clone(), // Use selected language
-                whisper_state,
+                local_model_state,
             )
             .await?
         }

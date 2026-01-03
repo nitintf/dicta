@@ -19,8 +19,8 @@ interface ModelActionsMenuProps {
   onSelectModel: (id: string) => void
   onSetApiKey: (model: TranscriptionModel) => void
   onRemoveApiKey: (id: string) => void
-  onDownloadModel: (modelName: string) => void
-  onDeleteModel: (id: string, modelName: string) => void
+  onDownloadModel: (model: TranscriptionModel) => void
+  onDeleteModel: (model: TranscriptionModel) => void
   onToggleEnabled: (id: string) => void
   onStartModel?: (id: string) => Promise<void>
   onStopModel?: (id: string) => Promise<void>
@@ -112,7 +112,7 @@ export function ModelActionsMenu({
         {isLocalModel && !model.isDownloaded && (
           <>
             <DropdownMenuItem
-              onClick={() => onDownloadModel(modelName)}
+              onClick={() => onDownloadModel(model)}
               disabled={downloading !== null}
               className="rounded-sm"
             >
@@ -185,7 +185,7 @@ export function ModelActionsMenu({
             <DropdownMenuSeparator />
             {isLocalModel && model.isDownloaded && (
               <DropdownMenuItem
-                onClick={() => onDeleteModel(model.id, modelName)}
+                onClick={() => onDeleteModel(model)}
                 className="rounded-sm text-destructive focus:text-destructive focus:bg-destructive/10"
               >
                 <div className="flex flex-col gap-0.5">
