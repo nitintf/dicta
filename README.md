@@ -1,18 +1,9 @@
 <div align="center">
-  <img src="src-tauri/icons/icon.png" alt="Dicta Logo" width="120" height="120">
+  <img src="public/icon.png" alt="Dicta Logo" width="120" height="120">
 
 # Dicta
 
-**A beautiful, spotlight-style voice transcription app for macOS**
-
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![macOS](https://img.shields.io/badge/platform-macOS-lightgrey.svg)](https://www.apple.com/macos)
-[![Version](https://img.shields.io/badge/version-0.1.0-green.svg)](package.json)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
-
-  <p align="center">
-    Capture your thoughts instantly with AI-powered voice transcription
-  </p>
+**Dicta is a sleek, Spotlight-inspired voice transcription app for macOS, capture your ideas instantly with AI-powered accuracy.**
 
 [Features](#-features) •
 [Installation](#-installation) •
@@ -20,39 +11,40 @@
 [Development](#-development) •
 [Contributing](#-contributing)
 
-  <img src="https://img.shields.io/badge/React-19-61dafb?logo=react" alt="React 19">
-  <img src="https://img.shields.io/badge/Tauri-2.5-ffc131?logo=tauri" alt="Tauri 2.5">
-  <img src="https://img.shields.io/badge/TypeScript-5.8-3178c6?logo=typescript" alt="TypeScript">
-  <img src="https://img.shields.io/badge/Rust-1.83-ce422b?logo=rust" alt="Rust">
+[![macOS](https://img.shields.io/badge/platform-macOS-lightgrey.svg)](https://www.apple.com/macos)
+<img src="https://img.shields.io/badge/React-19-61dafb?logo=react" alt="React 19">
+<img src="https://img.shields.io/badge/Tauri-2.5-ffc131?logo=tauri" alt="Tauri 2.5">
+<img src="https://img.shields.io/badge/TypeScript-5.8-3178c6?logo=typescript" alt="TypeScript">
+<img src="https://img.shields.io/badge/Rust-1.83-ce422b?logo=rust" alt="Rust">
 
 </div>
 
 ---
 
-## ✨ Features
+## Features
 
-### 🎤 Voice Recording
+### Voice Recording
 
 - **Global Shortcut** - Press `Alt+Space` anywhere to start recording
 - **Spotlight-Style UI** - Beautiful floating panel that appears instantly
 - **Visual Feedback** - Real-time audio waveform visualization
 - **Auto-Save** - Recordings are automatically saved to your library
 
-### 🤖 AI Transcription
+### AI Transcription
 
 - **Multiple Providers** - Support for OpenAI Whisper, Google Speech-to-Text, Deepgram, AssemblyAI, ElevenLabs, and Local Whisper
 - **High Accuracy** - AI-powered transcription with excellent accuracy
 - **Multiple Languages** - Transcribe in various languages
 - **Local Processing** - Option to run Whisper models locally for privacy
 
-### 📝 Transcription Management
+### Transcription Management
 
 - **Library View** - Browse all your transcriptions with search and filtering
 - **Rich Metadata** - View word count, duration, timestamp, and model used
 - **Quick Actions** - Copy, delete, or export transcriptions instantly
 - **Auto-Paste** - Optionally paste transcriptions directly to active apps
 
-### 🎨 Customization
+### Customization
 
 - **Text Styles (Vibes)** - Apply different formatting styles to your transcriptions
   - Personal: Polished, Relaxed, Chill
@@ -62,17 +54,7 @@
 - **Text Snippets** - Create reusable text expansions
 - **Vocabulary** - Add custom words for better transcription accuracy
 
-### ⚙️ Settings & Privacy
-
-- **Microphone Selection** - Choose from all available audio devices
-- **Customizable Shortcuts** - Configure global shortcuts to your preference
-- **Launch at Startup** - Optionally start Dicta when you log in
-- **Dock Visibility** - Show or hide app icon in the dock
-- **Audio Recording** - Optionally save audio files of your recordings
-- **Data Export/Import** - Backup and restore your data with encrypted zip files
-- **Privacy First** - Optional analytics and error logging
-
-## 📦 Installation
+## Installation
 
 ### From Release (Recommended)
 
@@ -96,7 +78,7 @@ pnpm tauri build
 # The built app will be in src-tauri/target/release/bundle/macos/
 ```
 
-## 🛠 Tech Stack
+## Tech Stack
 
 ### Frontend
 
@@ -119,8 +101,8 @@ pnpm tauri build
 
 - **OpenAI API** - Whisper and GPT models
 - **Google Cloud** - Speech-to-Text API
-- **Deepgram** - Real-time transcription
-- **AssemblyAI** - Advanced transcription features
+- **Deepgram** - Real-time transcription (WIP)
+- **AssemblyAI** - Advanced transcription features (WIP)
 - **ElevenLabs** - High-quality voice AI
 - **Local Whisper** - Privacy-focused local processing
 
@@ -195,10 +177,10 @@ We welcome contributions from the community! Here's how you can help:
 
 ### Ways to Contribute
 
-- 🐛 **Report bugs** - Open an issue with detailed reproduction steps
-- 💡 **Suggest features** - Share your ideas for improvements
-- 📝 **Improve documentation** - Help others understand the project
-- 🔧 **Submit pull requests** - Fix bugs or add features
+- **Report bugs** - Open an issue with detailed reproduction steps
+- **Suggest features** - Share your ideas for improvements
+- **Improve documentation** - Help others understand the project
+- **Submit pull requests** - Fix bugs or add features
 
 ### Development Workflow
 
@@ -244,11 +226,11 @@ We welcome contributions from the community! Here's how you can help:
 
 ### Getting Help
 
-- 💬 **Discussions** - Ask questions and share ideas
-- 📧 **Email** - Contact maintainers directly
-- 📚 **Wiki** - Check the project wiki for guides
+- **Discussions** - Ask questions and share ideas
+- **Email** - Contact maintainers directly
+- **Wiki** - Check the project wiki for guides
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
@@ -258,12 +240,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - UI components from [Radix UI](https://www.radix-ui.com/)
 - Icons from [Lucide](https://lucide.dev/)
 - Transcription powered by various AI providers
-
----
-
-<div align="center">
-  Made with ❤️ by the Dicta team
-
-[⭐ Star us on GitHub](https://github.com/yourusername/dicta)
-
-</div>
