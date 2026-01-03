@@ -38,8 +38,7 @@ export function HomePageContent() {
   }
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Fixed Header Section */}
+    <div className="h-full w-full flex flex-col">
       <div className="shrink-0 p-8 pt-16">
         <StatsHeader
           todayCount={stats.todayCount}
@@ -50,7 +49,6 @@ export function HomePageContent() {
         <WelcomeBanner />
       </div>
 
-      {/* Scrollable History Container */}
       <div className="flex-1 overflow-y-auto px-8 pb-8">
         <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide sticky top-0 bg-background z-20 pb-4 pt-2">
           Recent Transcriptions

@@ -10,7 +10,9 @@ import { initializeModelStatusListener } from './features/models'
 import { ModelsPage } from './features/models'
 import { OnboardingPage } from './features/onboarding'
 import { SnippetsPage } from './features/snippets'
-import { StylesPage } from './features/styles'
+import { VibesPage } from './features/vibes'
+import { VocabularyPage } from './features/vocabulary'
+import { ThemeProvider } from './providers/theme-provider'
 
 import './index.css'
 
@@ -20,29 +22,32 @@ function App() {
   }, [])
 
   return (
-    <BrowserRouter>
-      <Toaster position="top-center" richColors />
-      <Routes>
-        <Route path="/onboarding" element={<OnboardingPage />} />
-        <Route
-          path="/*"
-          element={
-            <ProtectedRoute>
-              <AppLayout>
-                <Routes>
-                  <Route path="/" element={<HomePageContent />} />
-                  <Route path="/snippets" element={<SnippetsPage />} />
-                  <Route path="/styles" element={<StylesPage />} />
-                  <Route path="/help" element={<HelpPage />} />
-                  <Route path="/models" element={<ModelsPage />} />
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-              </AppLayout>
-            </ProtectedRoute>
-          }
-        />
-      </Routes>
-    </BrowserRouter>
+    <ThemeProvider defaultTheme="system">
+      <BrowserRouter>
+        <Toaster position="top-center" richColors />
+        <Routes>
+          <Route path="/onboarding" element={<OnboardingPage />} />
+          <Route
+            path="/*"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <Routes>
+                    <Route path="/" element={<HomePageContent />} />
+                    <Route path="/snippets" element={<SnippetsPage />} />
+                    <Route path="/vocabulary" element={<VocabularyPage />} />
+                    <Route path="/vibes" element={<VibesPage />} />
+                    <Route path="/help" element={<HelpPage />} />
+                    <Route path="/models" element={<ModelsPage />} />
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Routes>
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </BrowserRouter>
+    </ThemeProvider>
   )
 }
 

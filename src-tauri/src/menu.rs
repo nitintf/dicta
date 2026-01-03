@@ -1,94 +1,85 @@
+use crate::audio_devices::enumerate_audio_devices;
 use crate::models::WhisperManager;
+use serde_json::json;
 use std::sync::Arc;
 use tauri::menu::{MenuBuilder, MenuItem, PredefinedMenuItem, SubmenuBuilder};
 use tauri::tray::TrayIconBuilder;
 use tauri::{App, AppHandle, Emitter, Manager, Result};
+use tauri_plugin_store::StoreExt;
 use tokio::sync::Mutex;
 
 /// Sets up the system tray icon and menu
 pub fn setup_tray(app: &App, whisper_cleanup: Arc<Mutex<WhisperManager>>) -> Result<()> {
-    // Microphone submenu
-    let microphone_submenu = SubmenuBuilder::new(app, "Microphone")
-        .item(&MenuItem::with_id(
-            app,
-            "mic-default",
-            "Default System Microphone",
-            true,
-            None::<&str>,
-        )?)
-        .separator()
-        .item(&MenuItem::with_id(
-            app,
-            "mic-settings",
-            "Change in Settings...",
-            true,
-            None::<&str>,
-        )?)
-        .build()?;
+    // Get available audio devices
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let devices = runtime
+        .block_on(enumerate_audio_devices())
+        .unwrap_or_default();
 
-    // Language submenu with popular languages
-    let language_submenu = SubmenuBuilder::new(app, "Language")
-        .item(&MenuItem::with_id(
+    // Get current microphone device from settings
+    let store = app.store("settings").map_err(|e| {
+        tauri::Error::Io(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("Failed to get store: {}", e),
+        ))
+    })?;
+    let current_device_id = store.get("settings").and_then(|settings| {
+        settings
+            .get("voiceInput")
+            .and_then(|voice_input| voice_input.get("microphoneDeviceId"))
+            .and_then(|device_id| device_id.as_str().map(|s| s.to_string()))
+    });
+
+    // Build microphone submenu dynamically
+    let mut microphone_submenu_builder = SubmenuBuilder::new(app, "Microphone");
+
+    // Add "Auto-detect" option with tick if selected
+    let auto_detect_label = if current_device_id.is_none() {
+        "✓ Auto-detect"
+    } else {
+        "Auto-detect"
+    };
+    microphone_submenu_builder = microphone_submenu_builder.item(&MenuItem::with_id(
+        app,
+        "mic-auto-detect",
+        auto_detect_label,
+        true,
+        None::<&str>,
+    )?);
+
+    // Add separator if we have devices
+    if !devices.is_empty() {
+        microphone_submenu_builder = microphone_submenu_builder.separator();
+    }
+
+    // Add each device with tick if selected
+    for device in &devices {
+        let menu_id = format!("mic-{}", device.device_id);
+        let is_selected = current_device_id.as_ref() == Some(&device.device_id);
+
+        let mut label = String::new();
+        if is_selected {
+            label.push_str("✓ ");
+        }
+        label.push_str(&device.label);
+        if device.is_recommended {
+            label.push_str(" (Recommended)");
+        }
+
+        microphone_submenu_builder = microphone_submenu_builder.item(&MenuItem::with_id(
             app,
-            "lang-en",
-            "🇺🇸 English",
+            menu_id.as_str(),
+            label.as_str(),
             true,
             None::<&str>,
-        )?)
-        .item(&MenuItem::with_id(
-            app,
-            "lang-es",
-            "🇪🇸 Spanish",
-            true,
-            None::<&str>,
-        )?)
-        .item(&MenuItem::with_id(
-            app,
-            "lang-fr",
-            "🇫🇷 French",
-            true,
-            None::<&str>,
-        )?)
-        .item(&MenuItem::with_id(
-            app,
-            "lang-de",
-            "🇩🇪 German",
-            true,
-            None::<&str>,
-        )?)
-        .item(&MenuItem::with_id(
-            app,
-            "lang-pt",
-            "🇵🇹 Portuguese",
-            true,
-            None::<&str>,
-        )?)
-        .item(&MenuItem::with_id(
-            app,
-            "lang-zh",
-            "🇨🇳 Chinese",
-            true,
-            None::<&str>,
-        )?)
-        .item(&MenuItem::with_id(
-            app,
-            "lang-ja",
-            "🇯🇵 Japanese",
-            true,
-            None::<&str>,
-        )?)
-        .separator()
-        .item(&MenuItem::with_id(
-            app,
-            "lang-more",
-            "More languages...",
-            true,
-            None::<&str>,
-        )?)
-        .build()?;
+        )?);
+    }
+
+    let microphone_submenu = microphone_submenu_builder.build()?;
 
     let tray_menu = MenuBuilder::new(app)
         .item(&MenuItem::with_id(app, "home", "Home", true, None::<&str>)?)
+        .separator()
         .item(&MenuItem::with_id(
             app,
             "check-updates",
@@ -96,6 +87,7 @@ pub fn setup_tray(app: &App, whisper_cleanup: Arc<Mutex<WhisperManager>>) -> Res
             true,
             None::<&str>,
         )?)
+        .separator()
         .item(&MenuItem::with_id(
             app,
             "paste-last",
@@ -105,7 +97,6 @@ pub fn setup_tray(app: &App, whisper_cleanup: Arc<Mutex<WhisperManager>>) -> Res
         )?)
         .separator()
         .item(&microphone_submenu)
-        .item(&language_submenu)
         .item(&MenuItem::with_id(
             app,
             "shortcuts",
@@ -122,20 +113,6 @@ pub fn setup_tray(app: &App, whisper_cleanup: Arc<Mutex<WhisperManager>>) -> Res
             None::<&str>,
         )?)
         .separator()
-        .item(&MenuItem::with_id(
-            app,
-            "help-center",
-            "Help Center",
-            true,
-            None::<&str>,
-        )?)
-        .item(&MenuItem::with_id(
-            app,
-            "talk-to-support",
-            "Talk to support",
-            true,
-            Some("CmdOrCtrl+/"),
-        )?)
         .item(&MenuItem::with_id(
             app,
             "general-feedback",
@@ -166,6 +143,50 @@ pub fn setup_tray(app: &App, whisper_cleanup: Arc<Mutex<WhisperManager>>) -> Res
     Ok(())
 }
 
+/// Sets the microphone device in settings
+fn set_microphone_device(app: &AppHandle, device_id: Option<String>) -> Result<()> {
+    let store = app.store("settings").map_err(|e| {
+        tauri::Error::Io(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("Failed to get store: {}", e),
+        ))
+    })?;
+
+    // Get current settings
+    let mut settings = store
+        .get("settings")
+        .ok_or_else(|| {
+            tauri::Error::Io(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "No settings found in store",
+            ))
+        })?
+        .clone();
+
+    // Update microphone device
+    if let Some(settings_obj) = settings.as_object_mut() {
+        if let Some(voice_input) = settings_obj.get_mut("voiceInput") {
+            if let Some(voice_input_obj) = voice_input.as_object_mut() {
+                voice_input_obj.insert(
+                    "microphoneDeviceId".to_string(),
+                    device_id.map(|id| json!(id)).unwrap_or(json!(null)),
+                );
+            }
+        }
+    }
+
+    // Save updated settings
+    store.set("settings", settings);
+    store.save().map_err(|e| {
+        tauri::Error::Io(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("Failed to save store: {}", e),
+        ))
+    })?;
+
+    Ok(())
+}
+
 /// Handles tray menu events
 fn handle_tray_event(app: &AppHandle, event_id: &str, whisper_cleanup: Arc<Mutex<WhisperManager>>) {
     match event_id {
@@ -188,24 +209,21 @@ fn handle_tray_event(app: &AppHandle, event_id: &str, whisper_cleanup: Arc<Mutex
                 }
             });
         }
-        "mic-default" => {
-            // This is just a label, no action needed
-            println!("Default microphone selected (no-op)");
-        }
-        "mic-settings" => {
-            // Open microphone settings in General section
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.show();
-                let _ = window.set_focus();
-                let _ = app.emit("open-settings", serde_json::json!({ "section": "general" }));
+        "mic-auto-detect" => {
+            // Set microphone to auto-detect (null)
+            if let Err(e) = set_microphone_device(app, None) {
+                eprintln!("Failed to set microphone to auto-detect: {}", e);
+            } else {
+                println!("Microphone set to auto-detect");
             }
         }
-        "lang-more" => {
-            // Open language settings in General section
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.show();
-                let _ = window.set_focus();
-                let _ = app.emit("open-settings", serde_json::json!({ "section": "general" }));
+        event_id if event_id.starts_with("mic-") => {
+            // Handle specific microphone selection
+            let device_id = event_id.strip_prefix("mic-").unwrap().to_string();
+            if let Err(e) = set_microphone_device(app, Some(device_id.clone())) {
+                eprintln!("Failed to set microphone to {}: {}", device_id, e);
+            } else {
+                println!("Microphone set to: {}", device_id);
             }
         }
         "shortcuts" => {
@@ -227,14 +245,6 @@ fn handle_tray_event(app: &AppHandle, event_id: &str, whisper_cleanup: Arc<Mutex
                 let _ = app.emit("open-settings", serde_json::json!({ "section": null }));
             }
         }
-        "help-center" => {
-            // TODO: Open help center URL
-            println!("Help center clicked");
-        }
-        "talk-to-support" => {
-            // TODO: Open support URL
-            println!("Talk to support clicked");
-        }
         "general-feedback" => {
             // TODO: Open feedback URL
             println!("General feedback clicked");
@@ -248,19 +258,6 @@ fn handle_tray_event(app: &AppHandle, event_id: &str, whisper_cleanup: Arc<Mutex
                 println!("Whisper model stopped on app exit");
             });
             app.exit(0);
-        }
-        event_id if event_id.starts_with("lang-") => {
-            // Handle language selection
-            let code = event_id.strip_prefix("lang-").unwrap();
-            println!("Language selected: {}", code);
-
-            // For now, just open settings to the general panel
-            // TODO: In future, could directly update settings and emit event
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.show();
-                let _ = window.set_focus();
-                let _ = app.emit("open-settings", serde_json::json!({ "section": "general" }));
-            }
         }
         _ => {}
     }
@@ -342,7 +339,7 @@ pub fn setup_menu_bar(app: &App) -> Result<()> {
     app.set_menu(menu)?;
 
     // Handle menu bar events
-    app.on_menu_event(move |app, event| {
+    app.on_menu_event(move |_app, event| {
         handle_menu_bar_event(&handle, event.id().as_ref());
     });
 

@@ -1,4 +1,11 @@
-import { Home, FileText, Palette, HelpCircle, Settings } from 'lucide-react'
+import {
+  Home,
+  Palette,
+  Brain,
+  Settings,
+  SquareBottomDashedScissors,
+  BookOpen,
+} from 'lucide-react'
 import { useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { useLocation, Link } from 'react-router-dom'
@@ -15,7 +22,7 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
 
-import packageJson from '../../package.json'
+import { DictaVersion } from './dicta-version'
 import { DictaLogo } from './ui/dicta-logo'
 import { SettingsDialog } from '../features/settings/components/settings-dialog'
 
@@ -27,17 +34,22 @@ const menuItems = [
   },
   {
     title: 'Snippets',
-    icon: FileText,
+    icon: SquareBottomDashedScissors,
     path: '/snippets',
   },
   {
-    title: 'Styles',
+    title: 'Vocabulary',
+    icon: BookOpen,
+    path: '/vocabulary',
+  },
+  {
+    title: 'Vibes',
     icon: Palette,
-    path: '/styles',
+    path: '/vibes',
   },
   {
     title: 'Models',
-    icon: Settings,
+    icon: Brain,
     path: '/models',
   },
 ]
@@ -58,7 +70,7 @@ export function AppSidebar() {
           <SidebarHeader>
             <h2 className="text-xl font-bold flex items-center gap-2.5 text-onboarding-text">
               <DictaLogo size={28} className="text-onboarding-primary" />
-              Dicta
+              <span className="text-foreground">Dicta</span>
             </h2>
           </SidebarHeader>
           <SidebarGroup>
@@ -91,7 +103,7 @@ export function AppSidebar() {
 
         <SidebarFooter className="pb-4">
           <SidebarMenu>
-            <SidebarMenuItem>
+            {/* <SidebarMenuItem>
               <SidebarMenuButton
                 asChild
                 isActive={location.pathname === '/help'}
@@ -102,7 +114,7 @@ export function AppSidebar() {
                   <span>Help</span>
                 </Link>
               </SidebarMenuButton>
-            </SidebarMenuItem>
+            </SidebarMenuItem> */}
             <SidebarMenuItem>
               <SidebarMenuButton
                 onClick={() => setSettingsOpen(true)}
@@ -117,9 +129,7 @@ export function AppSidebar() {
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
-          <div className="px-4 py-2 text-xs text-muted-foreground">
-            v{packageJson.version}
-          </div>
+          <DictaVersion />
         </SidebarFooter>
       </Sidebar>
 

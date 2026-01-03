@@ -36,14 +36,15 @@ export function ShortcutsPanel() {
               ? 'Shortcut to start/stop voice recording'
               : 'Global shortcuts are disabled'
           }
-        >
-          <ShortcutRecorder
-            value={settings.voiceInput.shortcut}
-            onChange={setVoiceInputShortcut}
-            placeholder="Not set"
-            disabled={!settings.shortcuts.globalShortcutsEnabled}
-          />
-        </SettingItem>
+          action={
+            <ShortcutRecorder
+              value={settings.voiceInput.shortcut}
+              onChange={setVoiceInputShortcut}
+              placeholder="Not set"
+              disabled={!settings.shortcuts.globalShortcutsEnabled}
+            />
+          }
+        />
 
         <SettingItem
           title="Paste last transcript"
@@ -52,14 +53,15 @@ export function ShortcutsPanel() {
               ? 'Quickly paste your most recent transcription'
               : 'Global shortcuts are disabled'
           }
-        >
-          <ShortcutRecorder
-            value={settings.shortcuts.pasteLastTranscript}
-            onChange={setPasteShortcut}
-            placeholder="Not set"
-            disabled={!settings.shortcuts.globalShortcutsEnabled}
-          />
-        </SettingItem>
+          action={
+            <ShortcutRecorder
+              value={settings.shortcuts.pasteLastTranscript}
+              onChange={setPasteShortcut}
+              placeholder="Not set"
+              disabled={!settings.shortcuts.globalShortcutsEnabled}
+            />
+          }
+        />
       </SettingsSection>
     </SettingsPanel>
   )

@@ -2,9 +2,9 @@ import { invoke } from '@tauri-apps/api/core'
 import { Store, load } from '@tauri-apps/plugin-store'
 import { create } from 'zustand'
 
-import { defaultSettings } from './types'
+import { defaultSettings, type Settings } from './schema'
 
-import type { Settings, SettingsStore } from './types'
+import type { SettingsStore } from './types'
 
 let tauriStore: Store | null = null
 
@@ -35,6 +35,9 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
         },
         transcription: {
           language: storedSettings?.transcription?.language ?? 'en',
+          autoPaste: storedSettings?.transcription?.autoPaste ?? false,
+          autoCopyToClipboard:
+            storedSettings?.transcription?.autoCopyToClipboard ?? false,
         },
         shortcuts: {
           pasteLastTranscript:
@@ -42,6 +45,15 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
             'CmdOrCtrl+Shift+V',
           globalShortcutsEnabled:
             storedSettings?.shortcuts?.globalShortcutsEnabled ?? true,
+        },
+        system: {
+          showInDock: storedSettings?.system?.showInDock ?? true,
+          saveAudioRecordings:
+            storedSettings?.system?.saveAudioRecordings ?? false,
+        },
+        privacy: {
+          analytics: storedSettings?.privacy?.analytics ?? false,
+          errorLogging: storedSettings?.privacy?.errorLogging ?? true,
         },
       }
 
@@ -167,6 +179,128 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       }
     } catch (error) {
       console.error('Error toggling global shortcuts:', error)
+    }
+  },
+
+  setShowInDock: async (enabled: boolean) => {
+    try {
+      const store = await getTauriStore()
+      const newSettings = {
+        ...get().settings,
+        system: {
+          ...get().settings.system,
+          showInDock: enabled,
+        },
+      }
+      await store.set('settings', newSettings)
+      await store.save()
+      set({ settings: newSettings })
+
+      // Update dock visibility
+      await invoke('set_show_in_dock', { show: enabled })
+    } catch (error) {
+      console.error('Error toggling show in dock:', error)
+    }
+  },
+
+  setSaveAudioRecordings: async (enabled: boolean) => {
+    try {
+      const store = await getTauriStore()
+      const newSettings = {
+        ...get().settings,
+        system: {
+          ...get().settings.system,
+          saveAudioRecordings: enabled,
+        },
+      }
+      await store.set('settings', newSettings)
+      await store.save()
+      set({ settings: newSettings })
+    } catch (error) {
+      console.error('Error toggling save audio recordings:', error)
+    }
+  },
+
+  setAutoPaste: async (enabled: boolean) => {
+    try {
+      const store = await getTauriStore()
+      const newSettings = {
+        ...get().settings,
+        transcription: {
+          ...get().settings.transcription,
+          autoPaste: enabled,
+        },
+      }
+      await store.set('settings', newSettings)
+      await store.save()
+      set({ settings: newSettings })
+    } catch (error) {
+      console.error('Error toggling auto-paste:', error)
+    }
+  },
+
+  setAutoCopyToClipboard: async (enabled: boolean) => {
+    try {
+      const store = await getTauriStore()
+      const newSettings = {
+        ...get().settings,
+        transcription: {
+          ...get().settings.transcription,
+          autoCopyToClipboard: enabled,
+        },
+      }
+      await store.set('settings', newSettings)
+      await store.save()
+      set({ settings: newSettings })
+    } catch (error) {
+      console.error('Error toggling auto-copy to clipboard:', error)
+    }
+  },
+
+  setAnalytics: async (enabled: boolean) => {
+    try {
+      const store = await getTauriStore()
+      const newSettings = {
+        ...get().settings,
+        privacy: {
+          ...get().settings.privacy,
+          analytics: enabled,
+        },
+      }
+      await store.set('settings', newSettings)
+      await store.save()
+      set({ settings: newSettings })
+    } catch (error) {
+      console.error('Error toggling analytics:', error)
+    }
+  },
+
+  setErrorLogging: async (enabled: boolean) => {
+    try {
+      const store = await getTauriStore()
+      const newSettings = {
+        ...get().settings,
+        privacy: {
+          ...get().settings.privacy,
+          errorLogging: enabled,
+        },
+      }
+      await store.set('settings', newSettings)
+      await store.save()
+      set({ settings: newSettings })
+    } catch (error) {
+      console.error('Error toggling error logging:', error)
+    }
+  },
+
+  resetSettings: async () => {
+    try {
+      const store = await getTauriStore()
+      await store.set('settings', defaultSettings)
+      await store.save()
+      set({ settings: defaultSettings })
+    } catch (error) {
+      console.error('Error resetting settings:', error)
     }
   },
 }))

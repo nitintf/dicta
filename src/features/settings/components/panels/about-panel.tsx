@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button'
+import { appConfig } from '@/config'
 
 import { SettingsPanel, SettingItem, SettingsSection } from './settings-panel'
-import packageJson from '../../../../../package.json'
 
 export function AboutPanel() {
   return (
@@ -9,7 +9,7 @@ export function AboutPanel() {
       <SettingsSection title="Application">
         <SettingItem
           title="Version"
-          description={`Dicta ${packageJson.version}`}
+          description={`Dicta ${appConfig.version}`}
         />
 
         <SettingItem
@@ -17,21 +17,9 @@ export function AboutPanel() {
           description="Stay up to date with the latest features and fixes"
           action={<Button variant="outline">Check now</Button>}
         />
-
-        <SettingItem
-          title="Release notes"
-          description="See what's new in this version"
-          action={<Button variant="outline">View</Button>}
-        />
       </SettingsSection>
 
       <SettingsSection title="Resources">
-        <SettingItem
-          title="Documentation"
-          description="Learn how to use Dicta effectively"
-          action={<Button variant="outline">Open</Button>}
-        />
-
         <SettingItem
           title="Support"
           description="Get help and report issues"
@@ -41,12 +29,6 @@ export function AboutPanel() {
         <SettingItem
           title="Privacy policy"
           description="How we handle your data"
-          action={<Button variant="outline">View</Button>}
-        />
-
-        <SettingItem
-          title="License"
-          description="View license information"
           action={<Button variant="outline">View</Button>}
         />
       </SettingsSection>

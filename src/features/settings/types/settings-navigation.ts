@@ -15,7 +15,6 @@ export type SettingsPanelId =
   | 'general'
   | 'shortcuts'
   | 'transcription'
-  | 'models'
+  | 'system'
   | 'privacy'
-  | 'advanced'
   | 'about'

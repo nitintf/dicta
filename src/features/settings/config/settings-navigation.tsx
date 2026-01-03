@@ -2,9 +2,8 @@ import {
   Settings,
   Keyboard,
   FileText,
-  Cpu,
+  Monitor,
   Shield,
-  Wrench,
   Info,
 } from 'lucide-react'
 
@@ -30,9 +29,9 @@ export const settingsNavigation: SettingsGroup[] = [
         icon: FileText,
       },
       {
-        id: 'models',
-        label: 'Models',
-        icon: Cpu,
+        id: 'system',
+        label: 'System',
+        icon: Monitor,
       },
     ],
   },
@@ -43,11 +42,6 @@ export const settingsNavigation: SettingsGroup[] = [
         id: 'privacy',
         label: 'Privacy & Data',
         icon: Shield,
-      },
-      {
-        id: 'advanced',
-        label: 'Advanced',
-        icon: Wrench,
       },
       {
         id: 'about',

@@ -41,7 +41,7 @@ function LanguageItem({ language }: { language: Language }) {
   )
 }
 
-export function LanguageSelector() {
+export function LanguageSelector({ disabled }: { disabled?: boolean }) {
   const { settings, setTranscriptionLanguage } = useSettingsStore()
   const selectedLanguageCode = settings.transcription.language
 
@@ -58,7 +58,7 @@ export function LanguageSelector() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="gap-2">
+        <Button variant="outline" className="gap-2" disabled={disabled}>
           {selectedLanguage ? (
             <>
               <FlagIcon countryCode={selectedLanguage.countryCode} />

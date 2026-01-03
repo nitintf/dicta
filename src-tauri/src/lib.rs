@@ -3,10 +3,12 @@ use tauri::{Emitter, Listener, Manager};
 #[cfg(target_os = "macos")]
 use tauri::ActivationPolicy;
 
+use tauri_plugin_store::StoreExt;
 use window::WebviewWindowExt;
 
 mod audio_devices;
 mod clipboard_utils;
+mod data_export;
 mod menu;
 mod models;
 mod secure_storage;
@@ -16,6 +18,7 @@ mod transcription;
 mod window;
 
 use audio_devices::enumerate_audio_devices;
+use data_export::{export_all_data, import_all_data, import_from_json};
 use models::{
     delete_whisper_model, download_whisper_model, get_all_models, get_local_model_status,
     start_local_model, stop_local_model, WhisperManager,
@@ -31,6 +34,20 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 pub const SPOTLIGHT_LABEL: &str = "voice-input";
+
+#[cfg(target_os = "macos")]
+#[tauri::command]
+fn set_show_in_dock(app: tauri::AppHandle, show: bool) -> Result<(), String> {
+    let policy = if show {
+        ActivationPolicy::Regular
+    } else {
+        ActivationPolicy::Accessory
+    };
+
+    app.set_activation_policy(policy)
+        .map_err(|e| format!("Failed to set activation policy: {}", e))?;
+    Ok(())
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -75,8 +92,32 @@ pub fn run() {
 
     #[cfg(target_os = "macos")]
     let setup_fn = move |app: &mut tauri::App| {
-        // Hide dock icon - app will only appear in menu bar (must be first)
-        app.set_activation_policy(ActivationPolicy::Accessory);
+        let store = app
+            .store("settings")
+            .map_err(|e| format!("Failed to get settings store: {}", e))?;
+
+        let show_in_dock = if let Some(settings) = store.get("settings") {
+            settings
+                .get("system")
+                .and_then(|sys| sys.get("showInDock"))
+                .and_then(|v| v.as_bool())
+                .unwrap_or(true)
+        } else {
+            true // Default to showing in dock if no settings found
+        };
+
+        let policy = if show_in_dock {
+            ActivationPolicy::Regular
+        } else {
+            ActivationPolicy::Accessory
+        };
+
+        app.set_activation_policy(policy);
+
+        println!(
+            "Applied dock setting from store: show_in_dock={}",
+            show_in_dock
+        );
 
         let handle = app.app_handle();
 
@@ -143,6 +184,8 @@ pub fn run() {
             has_api_key,
             // Audio devices
             enumerate_audio_devices,
+            // Clipboard utilities
+            clipboard_utils::get_focused_app,
             // Shortcuts management
             update_voice_input_shortcut,
             update_paste_shortcut,
@@ -151,6 +194,12 @@ pub fn run() {
             // Transcription utilities
             get_last_transcript,
             paste_last_transcript,
+            // System preferences
+            set_show_in_dock,
+            // Data export/import
+            export_all_data,
+            import_all_data,
+            import_from_json,
         ])
         .setup(setup_fn)
         .build(tauri::generate_context!())

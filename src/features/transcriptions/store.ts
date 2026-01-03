@@ -2,7 +2,9 @@ import { listen } from '@tauri-apps/api/event'
 import { Store, load } from '@tauri-apps/plugin-store'
 import { create } from 'zustand'
 
-import type { Transcription, TranscriptionsState } from './types'
+import { Transcription } from './schema'
+
+import type { TranscriptionsStore } from './types'
 
 let tauriStore: Store | null = null
 
@@ -31,7 +33,7 @@ function isToday(timestamp: number): boolean {
   )
 }
 
-export const useTranscriptionsStore = create<TranscriptionsState>(
+export const useTranscriptionsStore = create<TranscriptionsStore>(
   (set, get) => ({
     transcriptions: [],
     initialized: false,

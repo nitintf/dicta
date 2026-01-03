@@ -13,12 +13,10 @@ export function TranscriptionGroup({
 }: TranscriptionGroupProps) {
   return (
     <div>
-      {/* Sticky Date Header */}
       <div className="sticky top-[42px] bg-background z-10 pb-3 pt-1">
         <h3 className="text-sm font-semibold text-foreground">{group.label}</h3>
       </div>
 
-      {/* Transcriptions for this date */}
       <div className="space-y-2 mb-6">
         {group.transcriptions.map(transcription => (
           <TranscriptionCard

@@ -85,15 +85,23 @@ export function useVoiceRecording() {
         mediaRecorderRef.current = null
       }
 
-      if (audioBlob) {
+      if (audioBlob && audioBlob.size > 0) {
         try {
           const duration = calculateDuration(recordingStartTimeRef.current)
           const timestamp = Date.now()
 
-          await processTranscription({ audioBlob, timestamp, duration })
+          const result = await processTranscription({
+            audioBlob,
+            timestamp,
+            duration,
+          })
 
-          setFeedbackMessage('completed')
-          await delay(FEEDBACK_DURATION.COMPLETED)
+          // Only show completed message if transcription was actually saved
+          // (result will be null/undefined if audio was silent)
+          if (result !== null && result !== undefined) {
+            setFeedbackMessage('completed')
+            await delay(FEEDBACK_DURATION.COMPLETED)
+          }
         } catch (transcriptionError) {
           console.error('Transcription failed:', transcriptionError)
           setFeedbackMessage('error')

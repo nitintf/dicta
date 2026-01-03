@@ -33,6 +33,7 @@ interface SettingItemProps {
   description?: string
   action?: ReactNode
   children?: ReactNode
+  disabled?: boolean
 }
 
 export function SettingItem({
@@ -40,9 +41,16 @@ export function SettingItem({
   description,
   action,
   children,
+  disabled,
 }: SettingItemProps) {
   return (
-    <div className="flex items-start justify-between gap-4 py-4">
+    <div
+      className={cn(
+        'flex items-start justify-between gap-4 py-4',
+        disabled && 'opacity-50'
+      )}
+      aria-disabled={disabled ?? false}
+    >
       <div className="flex-1 space-y-1">
         <h3 className="text-sm font-medium leading-none">{title}</h3>
         {description && (
@@ -50,7 +58,7 @@ export function SettingItem({
         )}
         {children && <div className="pt-2">{children}</div>}
       </div>
-      {action && <div className="flex-shrink-0">{action}</div>}
+      {action && <div className="shrink-0">{action}</div>}
     </div>
   )
 }

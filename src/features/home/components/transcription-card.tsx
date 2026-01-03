@@ -17,7 +17,7 @@ export function TranscriptionCard({
   onDelete,
 }: TranscriptionCardProps) {
   return (
-    <div className="group p-4 rounded-lg border border-gray-200 bg-white hover:border-gray-300 transition-colors">
+    <div className="group p-4 rounded-lg border bg-transparent transition-colors">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <p className="text-sm text-foreground line-clamp-2 mb-2">
@@ -26,7 +26,7 @@ export function TranscriptionCard({
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <span>{formatTime(transcription.timestamp)}</span>
             <span>{transcription.wordCount} words</span>
-            <span>{formatDuration(transcription.duration)}</span>
+            <span>{formatDuration(transcription.duration ?? undefined)}</span>
           </div>
         </div>
 

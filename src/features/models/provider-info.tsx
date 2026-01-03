@@ -2,6 +2,8 @@ import { Apple } from 'lucide-react'
 
 import { cn } from '@/lib/cn'
 
+import { useTheme } from '../../providers/theme-provider'
+
 import type { ModelProvider } from './types'
 import type { ComponentProps } from 'react'
 
@@ -15,16 +17,26 @@ type ProviderLogoProps = Omit<ComponentProps<'img'>, 'src' | 'alt'> & {
   provider: string
 }
 
-const ProviderLogo = ({ provider, className, ...props }: ProviderLogoProps) => (
-  <img
-    {...props}
-    alt={`${provider} logo`}
-    className={cn('size-4', className)}
-    height={16}
-    src={`https://models.dev/logos/${provider}.svg`}
-    width={16}
-  />
-)
+const ProviderLogo = ({ provider, className, ...props }: ProviderLogoProps) => {
+  const { actualTheme } = useTheme()
+
+  return (
+    <img
+      {...props}
+      alt={`${provider} logo`}
+      className={cn(
+        'size-4',
+        {
+          'dark:invert': actualTheme === 'dark',
+        },
+        className
+      )}
+      height={16}
+      src={`https://models.dev/logos/${provider}.svg`}
+      width={16}
+    />
+  )
+}
 
 export const getProviderInfo = (provider: ModelProvider): ProviderInfo => {
   switch (provider) {
@@ -73,7 +85,7 @@ export const getProviderInfo = (provider: ModelProvider): ProviderInfo => {
     case 'apple':
       return {
         name: 'Apple',
-        icon: <Apple className="w-4 h-4" />,
+        icon: <Apple className="w-4 h-4 dark:invert" />,
         color: 'text-gray-800',
       }
     case 'local-whisper':

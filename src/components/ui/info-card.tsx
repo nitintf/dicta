@@ -16,11 +16,11 @@ export function InfoCard({
   return (
     <div
       className={cn(
-        'rounded-xl p-8 transition-colors',
+        'rounded-xl p-4 transition-colors',
         variant === 'default' &&
-          'bg-gradient-to-br from-gray-50 to-gray-100/50 border border-gray-200',
+          'bg-linear-to-br from-gray-50 to-gray-100/50 border border-gray-200',
         variant === 'accent' &&
-          'bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20',
+          'bg-linear-to-br from-primary/5 to-primary/10 border border-primary/20',
         className
       )}
     >

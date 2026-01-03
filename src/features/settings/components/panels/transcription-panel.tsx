@@ -1,8 +1,37 @@
-import { Button } from '@/components/ui/button'
+import { useState } from 'react'
+
+import { Switch } from '@/components/ui/switch'
 
 import { SettingsPanel, SettingItem, SettingsSection } from './settings-panel'
+import { useSettingsStore } from '../../store'
 
 export function TranscriptionPanel() {
+  const { settings, setAutoPaste, setAutoCopyToClipboard } = useSettingsStore()
+  const [autoPasteLoading, setAutoPasteLoading] = useState(false)
+  const [autoCopyLoading, setAutoCopyLoading] = useState(false)
+
+  const handleAutoPasteToggle = async (checked: boolean) => {
+    setAutoPasteLoading(true)
+    try {
+      await setAutoPaste(checked)
+    } catch (error) {
+      console.error('Failed to toggle auto-paste:', error)
+    } finally {
+      setAutoPasteLoading(false)
+    }
+  }
+
+  const handleAutoCopyToggle = async (checked: boolean) => {
+    setAutoCopyLoading(true)
+    try {
+      await setAutoCopyToClipboard(checked)
+    } catch (error) {
+      console.error('Failed to toggle auto-copy:', error)
+    } finally {
+      setAutoCopyLoading(false)
+    }
+  }
+
   return (
     <SettingsPanel
       title="Transcription"
@@ -10,41 +39,27 @@ export function TranscriptionPanel() {
     >
       <SettingsSection title="Behavior">
         <SettingItem
-          title="Auto-save transcriptions"
-          description="Automatically save transcriptions when recording stops"
-          action={<Button variant="outline">Enabled</Button>}
+          title="Auto-paste where cursor is active"
+          description="Automatically paste transcription text at cursor position"
+          action={
+            <Switch
+              checked={settings.transcription.autoPaste}
+              onCheckedChange={handleAutoPasteToggle}
+              disabled={autoPasteLoading}
+            />
+          }
         />
 
         <SettingItem
           title="Auto-copy to clipboard"
           description="Copy transcription text to clipboard after completion"
-          action={<Button variant="outline">Disabled</Button>}
-        />
-
-        <SettingItem
-          title="Default style"
-          description="Apply a style template to new transcriptions"
-          action={<Button variant="outline">Select</Button>}
-        />
-      </SettingsSection>
-
-      <SettingsSection title="Formatting">
-        <SettingItem
-          title="Punctuation"
-          description="Automatic punctuation and capitalization"
-          action={<Button variant="outline">Enabled</Button>}
-        />
-
-        <SettingItem
-          title="Paragraphs"
-          description="Auto-detect paragraph breaks"
-          action={<Button variant="outline">Enabled</Button>}
-        />
-
-        <SettingItem
-          title="Timestamps"
-          description="Include timestamps in transcriptions"
-          action={<Button variant="outline">Disabled</Button>}
+          action={
+            <Switch
+              checked={settings.transcription.autoCopyToClipboard}
+              onCheckedChange={handleAutoCopyToggle}
+              disabled={autoCopyLoading}
+            />
+          }
         />
       </SettingsSection>
     </SettingsPanel>

@@ -1,16 +1,11 @@
-import { Button } from '@/components/ui/button'
-
 import { getLanguageByCode } from '../../data/languages'
 import { useSettingsStore } from '../../store'
 import { LanguageSelector } from '../language-selector'
 import { MicrophoneSelector } from '../microphone-selector'
+import { ThemeSelector } from '../theme-selector'
 import { SettingsPanel, SettingItem, SettingsSection } from './settings-panel'
 
-interface GeneralPanelProps {
-  onNavigateToPanel?: (panelId: string) => void
-}
-
-export function GeneralPanel({ onNavigateToPanel }: GeneralPanelProps) {
+export function GeneralPanel() {
   const { settings } = useSettingsStore()
 
   const selectedLanguage = getLanguageByCode(settings.transcription.language)
@@ -32,33 +27,15 @@ export function GeneralPanel({ onNavigateToPanel }: GeneralPanelProps) {
 
         <SettingItem
           title="Transcription language"
-          description={languageDescription}
-          action={<LanguageSelector />}
-        />
-
-        <SettingItem
-          title="Keyboard shortcuts"
-          description="Configure voice input and paste shortcuts"
-          action={
-            <Button
-              variant="outline"
-              onClick={() => onNavigateToPanel?.('shortcuts')}
-            >
-              Configure
-            </Button>
-          }
-        />
-
-        <SettingItem
-          title="Launch at startup"
-          description="Automatically launch Dicta when you log in"
-          action={<Button variant="outline">Enable</Button>}
+          description={`${languageDescription} - Currently we only support English`}
+          action={<LanguageSelector disabled={true} />}
+          disabled={true}
         />
 
         <SettingItem
           title="Theme"
-          description="System (Light mode)"
-          action={<Button variant="outline">Change</Button>}
+          description="Choose your preferred color theme"
+          action={<ThemeSelector />}
         />
       </SettingsSection>
     </SettingsPanel>

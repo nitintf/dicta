@@ -4,11 +4,10 @@ import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { useTauriEvent } from '@/hooks/use-tauri-event'
 
 import { AboutPanel } from './panels/about-panel'
-import { AdvancedPanel } from './panels/advanced-panel'
 import { GeneralPanel } from './panels/general-panel'
-import { ModelsPanel } from './panels/models-panel'
 import { PrivacyPanel } from './panels/privacy-panel'
 import { ShortcutsPanel } from './panels/shortcuts-panel'
+import { SystemPanel } from './panels/system-panel'
 import { TranscriptionPanel } from './panels/transcription-panel'
 import { SettingsSidebar } from './settings-sidebar'
 import { SettingsPanelId } from '../types/settings-navigation'
@@ -33,9 +32,8 @@ const panelComponents: Record<SettingsPanelId, PanelComponent> = {
   general: GeneralPanel,
   shortcuts: ShortcutsPanel,
   transcription: TranscriptionPanel,
-  models: ModelsPanel,
+  system: SystemPanel,
   privacy: PrivacyPanel,
-  advanced: AdvancedPanel,
   about: AboutPanel,
 }
 
@@ -69,7 +67,7 @@ export function SettingsDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="min-w-[900px] max-w-[900px] max-h-[700px] min-h-[700px]"
+        className="min-w-[900px] max-w-[900px] max-h-[700px] min-h-[700px] p-0!"
         showCloseButton={false}
       >
         <div className="flex h-full w-full">

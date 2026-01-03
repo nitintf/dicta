@@ -51,11 +51,17 @@ pub async fn transcribe_and_process(
     request: TranscribeRequest,
     app: AppHandle,
     whisper_state: State<'_, Arc<Mutex<WhisperManager>>>,
-) -> Result<TranscriptionRecord, String> {
+) -> Result<Option<TranscriptionRecord>, String> {
     // Step 1: Get selected model from store
     let selected_model = get_selected_model(&app)?;
 
-    // Step 2: Transcribe using appropriate provider
+    // Step 2: Check if audio is silent before making expensive API calls
+    if is_audio_silent(&request.audio_data)? {
+        println!("Audio is silent, skipping transcription");
+        return Ok(None);
+    }
+
+    // Step 3: Transcribe using appropriate provider
     let transcription_text = transcribe_with_provider(
         &app,
         request.audio_data,
@@ -64,6 +70,12 @@ pub async fn transcribe_and_process(
         whisper_state,
     )
     .await?;
+
+    // Also skip if transcription is empty (backup check)
+    if transcription_text.trim().is_empty() {
+        println!("Transcription is empty, skipping");
+        return Ok(None);
+    }
 
     // Step 3: Create transcription record
     let word_count = transcription_text.split_whitespace().count();
@@ -80,17 +92,59 @@ pub async fn transcribe_and_process(
     // Step 4: Save transcription to store
     save_transcription(&app, &record)?;
 
-    // Step 5: Copy and paste text
-    if let Err(e) = clipboard_utils::copy_and_paste(record.text.clone()).await {
-        eprintln!("Failed to copy and paste: {}", e);
-        // Don't fail the whole operation if copy/paste fails
+    // Step 5: Check transcription settings
+    let settings = get_settings(&app)?;
+    let auto_paste = settings
+        .get("transcription")
+        .and_then(|t| t.get("autoPaste"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+
+    let auto_copy_to_clipboard = settings
+        .get("transcription")
+        .and_then(|t| t.get("autoCopyToClipboard"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+
+    // Step 6: Handle auto-paste (paste to active application)
+    if auto_paste {
+        // Hide voice input window BEFORE pasting
+        // This ensures the original app becomes frontmost for the paste command
+        app.emit("hide_voice_input", ())
+            .map_err(|e| format!("Failed to emit hide event: {}", e))?;
+
+        // Copy and paste text to active application
+        if let Err(e) = clipboard_utils::copy_and_paste(record.text.clone()).await {
+            eprintln!("Failed to copy and paste: {}", e);
+            // Don't fail the whole operation if copy/paste fails
+        }
+    } else if auto_copy_to_clipboard {
+        // Just copy to clipboard without pasting
+        use tauri_plugin_clipboard_manager::ClipboardExt;
+        if let Err(e) = app.clipboard().write_text(record.text.clone()) {
+            eprintln!("Failed to copy to clipboard: {}", e);
+        }
     }
 
-    // Step 6: Emit events for UI updates
+    // Step 7: Emit events for UI updates
     app.emit("transcriptions-changed", ())
         .map_err(|e| format!("Failed to emit sync event: {}", e))?;
 
-    Ok(record)
+    Ok(Some(record))
+}
+
+/// Get settings from the settings store
+fn get_settings(app: &AppHandle) -> Result<Value, String> {
+    let store = app
+        .store("settings")
+        .map_err(|e| format!("Failed to get settings store: {}", e))?;
+
+    let settings = store
+        .get("settings")
+        .ok_or("No settings found in store")?
+        .clone();
+
+    Ok(settings)
 }
 
 /// Get the selected model from the models store
@@ -305,4 +359,60 @@ struct SelectedModel {
     id: String,
     provider: String,
     path: Option<String>,
+}
+
+/// Detects if audio is silent by analyzing the waveform
+/// Returns true if audio is mostly silent (no speech detected)
+fn is_audio_silent(audio_data: &[u8]) -> Result<bool, String> {
+    use hound::WavReader;
+    use std::io::Cursor;
+
+    // Parse WAV file
+    let cursor = Cursor::new(audio_data);
+    let mut reader =
+        WavReader::new(cursor).map_err(|e| format!("Failed to parse WAV audio: {}", e))?;
+
+    let spec = reader.spec();
+
+    // Read all samples and calculate RMS (Root Mean Square)
+    let samples: Vec<f32> = match spec.sample_format {
+        hound::SampleFormat::Float => reader
+            .samples::<f32>()
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| format!("Failed to read samples: {}", e))?,
+        hound::SampleFormat::Int => {
+            // Convert i16 samples to f32
+            let max_val = i16::MAX as f32;
+            reader
+                .samples::<i16>()
+                .map(|s| s.map(|v| v as f32 / max_val))
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| format!("Failed to read samples: {}", e))?
+        }
+    };
+
+    if samples.is_empty() {
+        return Ok(true); // Empty audio is considered silent
+    }
+
+    // Calculate RMS
+    let sum_squares: f32 = samples.iter().map(|&s| s * s).sum();
+    let rms = (sum_squares / samples.len() as f32).sqrt();
+
+    // Also check peak amplitude
+    let peak = samples.iter().map(|&s| s.abs()).fold(0.0f32, f32::max);
+
+    // Thresholds for silence detection
+    const RMS_THRESHOLD: f32 = 0.01; // Very low RMS indicates silence
+    const PEAK_THRESHOLD: f32 = 0.02; // Very low peak indicates silence
+
+    // Audio is considered silent if both RMS and peak are below thresholds
+    let is_silent = rms < RMS_THRESHOLD && peak < PEAK_THRESHOLD;
+
+    println!(
+        "Audio analysis - RMS: {:.4}, Peak: {:.4}, Silent: {}",
+        rms, peak, is_silent
+    );
+
+    Ok(is_silent)
 }
