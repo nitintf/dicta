@@ -142,35 +142,6 @@ pnpm format:all
 pnpm build  # TypeScript compilation happens here
 ```
 
-### Project Structure
-
-```
-dicta/
-├── src/                      # React frontend
-│   ├── components/          # Reusable UI components
-│   ├── features/            # Feature-specific modules
-│   │   ├── home/           # Home page
-│   │   ├── settings/       # Settings management
-│   │   ├── snippets/       # Text snippets
-│   │   ├── styles/         # Text formatting (vibes)
-│   │   ├── transcriptions/ # Transcription library
-│   │   ├── vocabulary/     # Custom vocabulary
-│   │   └── voice-input/    # Voice recording UI
-│   └── utils/              # Utility functions
-├── src-tauri/               # Rust backend
-│   ├── src/
-│   │   ├── audio_devices.rs    # Microphone enumeration
-│   │   ├── clipboard_utils.rs  # Clipboard operations
-│   │   ├── data_export.rs      # Export/import functionality
-│   │   ├── menu.rs             # Tray and menu bar
-│   │   ├── models/             # Whisper model management
-│   │   ├── shortcuts.rs        # Global shortcuts
-│   │   ├── transcription/      # Transcription providers
-│   │   └── window.rs           # Window management
-│   └── Cargo.toml
-└── package.json
-```
-
 ## 🤝 Contributing
 
 We welcome contributions from the community! Here's how you can help:
