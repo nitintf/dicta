@@ -11,7 +11,7 @@ export function TranscriptionPanel() {
     setAutoPaste,
     setAutoCopyToClipboard,
     setAiProcessingEnabled,
-    setUseSnippets,
+    setExpandSnippets,
   } = useSettingsStore()
   const [autoPasteLoading, setAutoPasteLoading] = useState(false)
   const [autoCopyLoading, setAutoCopyLoading] = useState(false)
@@ -54,7 +54,7 @@ export function TranscriptionPanel() {
   const handleUseSnippetsToggle = async (checked: boolean) => {
     setUseSnippetsLoading(true)
     try {
-      await setUseSnippets(checked)
+      await setExpandSnippets(checked)
     } catch (error) {
       console.error('Failed to toggle use snippets:', error)
     } finally {
@@ -112,7 +112,7 @@ export function TranscriptionPanel() {
             description="Automatically expand snippet triggers in transcriptions"
             action={
               <Switch
-                checked={settings.aiProcessing.useSnippets}
+                checked={settings.aiProcessing.expandSnippets}
                 onCheckedChange={handleUseSnippetsToggle}
                 disabled={useSnippetsLoading}
               />
