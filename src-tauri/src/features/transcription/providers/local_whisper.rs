@@ -3,13 +3,14 @@ use tauri::{command, State};
 use tokio::sync::Mutex;
 
 use super::TranscriptionResponse;
-use crate::models::LocalModelManager;
+use crate::features::models::LocalModelManager;
 
+// TODO: This is not used anywhere, but we keep it here for reference
 /// Converts WAV audio bytes to f32 samples for whisper-rs
 ///
 /// This function parses the WAV header and converts 16-bit PCM samples
 /// to normalized f32 values (-1.0 to 1.0)
-fn convert_audio_to_samples(audio_data: Vec<u8>) -> Result<Vec<f32>, String> {
+fn _convert_audio_to_samples(audio_data: Vec<u8>) -> Result<Vec<f32>, String> {
     use hound::WavReader;
     use std::io::Cursor;
 

@@ -1,4 +1,14 @@
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import { motion } from 'motion/react'
+import {
+  useEffect,
+  useState,
+  useMemo,
+  useCallback,
+  useRef,
+  useLayoutEffect,
+} from 'react'
+
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 import { useModelsStore, initializeModels, type TranscriptionModel } from '..'
 import { ApiKeyModal } from '../components/api-key-modal'
@@ -31,6 +41,9 @@ export function ModelsPage() {
     stopLocalModel,
   } = useModelsStore()
 
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const [underlineStyle, setUnderlineStyle] = useState({ left: 0, width: 0 })
+
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
@@ -38,6 +51,9 @@ export function ModelsPage() {
   const [apiKeyModalModel, setApiKeyModalModel] =
     useState<TranscriptionModel | null>(null)
   const [downloading, setDownloading] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<
+    'speech-to-text' | 'post-processing'
+  >('speech-to-text')
 
   useEffect(() => {
     if (!initialized) {
@@ -92,10 +108,33 @@ export function ModelsPage() {
     ]
   )
 
-  // Compute stats
-  const cloudModelsCount = models.filter(m => m.type === 'cloud').length
-  const localModelsCount = models.filter(m => m.type === 'local').length
-  const selectedModel = models.find(m => m.isSelected)
+  const sttModels = useMemo(
+    () => models.filter(m => m.purpose === 'speech-to-text'),
+    [models]
+  )
+  const postProcessingModels = useMemo(
+    () => models.filter(m => m.purpose === 'post-processing'),
+    [models]
+  )
+
+  useLayoutEffect(() => {
+    const activeIndex = ['speech-to-text', 'post-processing'].indexOf(activeTab)
+    const activeTabElement = tabRefs.current[activeIndex]
+
+    if (activeTabElement) {
+      setUnderlineStyle({
+        left: activeTabElement.offsetLeft,
+        width: activeTabElement.offsetWidth,
+      })
+    }
+  }, [activeTab])
+
+  const activeModels =
+    activeTab === 'speech-to-text' ? sttModels : postProcessingModels
+
+  const cloudModelsCount = activeModels.filter(m => m.type === 'cloud').length
+  const localModelsCount = activeModels.filter(m => m.type === 'local').length
+  const selectedModel = activeModels.find(m => m.isSelected)
 
   if (!initialized) {
     return (
@@ -116,18 +155,78 @@ export function ModelsPage() {
 
       <ModelsInfoBanner />
 
-      <ModelsSearch value={globalFilter ?? ''} onChange={setGlobalFilter} />
+      <Tabs
+        value={activeTab}
+        onValueChange={v =>
+          setActiveTab(v as 'speech-to-text' | 'post-processing')
+        }
+        className="mt-6"
+      >
+        <TabsList className="bg-background relative rounded-none border-b p-0 w-auto">
+          <TabsTrigger
+            value="speech-to-text"
+            ref={el => {
+              tabRefs.current[0] = el
+            }}
+            className="bg-background w-min dark:data-[state=active]:bg-background relative z-10 rounded-none border-0 data-[state=active]:shadow-none"
+          >
+            Speech-to-Text ({sttModels.length})
+          </TabsTrigger>
+          <TabsTrigger
+            value="post-processing"
+            ref={el => {
+              tabRefs.current[1] = el
+            }}
+            className="bg-background w-min dark:data-[state=active]:bg-background relative z-10 rounded-none border-0 data-[state=active]:shadow-none"
+          >
+            Post-Processing ({postProcessingModels.length})
+          </TabsTrigger>
 
-      <ModelsTable
-        models={models}
-        columns={columns}
-        sorting={sorting}
-        columnFilters={columnFilters}
-        globalFilter={globalFilter}
-        onSortingChange={setSorting}
-        onColumnFiltersChange={setColumnFilters}
-        onGlobalFilterChange={setGlobalFilter}
-      />
+          <motion.div
+            className="bg-primary w-min absolute bottom-0 z-20 h-0.5"
+            layoutId="underline-models"
+            style={{
+              left: underlineStyle.left,
+              width: underlineStyle.width,
+            }}
+            transition={{
+              type: 'spring',
+              stiffness: 400,
+              damping: 40,
+            }}
+          />
+        </TabsList>
+
+        <TabsContent value="speech-to-text" className="mt-6">
+          <ModelsSearch value={globalFilter ?? ''} onChange={setGlobalFilter} />
+
+          <ModelsTable
+            models={sttModels}
+            columns={columns}
+            sorting={sorting}
+            columnFilters={columnFilters}
+            globalFilter={globalFilter}
+            onSortingChange={setSorting}
+            onColumnFiltersChange={setColumnFilters}
+            onGlobalFilterChange={setGlobalFilter}
+          />
+        </TabsContent>
+
+        <TabsContent value="post-processing" className="mt-6">
+          <ModelsSearch value={globalFilter ?? ''} onChange={setGlobalFilter} />
+
+          <ModelsTable
+            models={postProcessingModels}
+            columns={columns}
+            sorting={sorting}
+            columnFilters={columnFilters}
+            globalFilter={globalFilter}
+            onSortingChange={setSorting}
+            onColumnFiltersChange={setColumnFilters}
+            onGlobalFilterChange={setGlobalFilter}
+          />
+        </TabsContent>
+      </Tabs>
 
       <ApiKeyModal
         model={apiKeyModalModel}

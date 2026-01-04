@@ -217,7 +217,7 @@ export function VibesPanel() {
 
           <motion.div
             className="bg-primary w-min absolute bottom-0 z-20 h-0.5"
-            layoutId="underline"
+            layoutId="underline-vibes"
             style={{
               left: underlineStyle.left,
               width: underlineStyle.width,

@@ -1,7 +1,6 @@
-use crate::shortcut_utils::parse_shortcut;
+use crate::features::shortcuts::utils::parse_shortcut;
 use crate::SPOTLIGHT_LABEL;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
 use tauri::{command, App, AppHandle, Emitter, Manager, Result, State};
 use tauri_nspanel::ManagerExt;
 use tauri_plugin_global_shortcut::{
@@ -13,8 +12,6 @@ pub struct ShortcutManager {
     pub voice_input_shortcut: Arc<Mutex<Option<Shortcut>>>,
     pub paste_shortcut: Arc<Mutex<Option<Shortcut>>>,
     pub shortcuts_enabled: Arc<Mutex<bool>>,
-    pub last_paste_time: Arc<Mutex<Option<Instant>>>,
-    pub last_voice_input_time: Arc<Mutex<Option<Instant>>>,
 }
 
 impl ShortcutManager {
@@ -23,8 +20,6 @@ impl ShortcutManager {
             voice_input_shortcut: Arc::new(Mutex::new(None)),
             paste_shortcut: Arc::new(Mutex::new(None)),
             shortcuts_enabled: Arc::new(Mutex::new(true)),
-            last_paste_time: Arc::new(Mutex::new(None)),
-            last_voice_input_time: Arc::new(Mutex::new(None)),
         }
     }
 }
@@ -205,7 +200,7 @@ fn handle_paste_shortcut(app: &AppHandle, shortcut: &Shortcut, event: ShortcutEv
         // Trigger paste in async runtime
         let app_clone = app.clone();
         tauri::async_runtime::spawn(async move {
-            if let Err(e) = crate::transcription::paste_last_transcript(app_clone).await {
+            if let Err(e) = crate::features::transcription::paste_last_transcript(app_clone).await {
                 eprintln!("Failed to paste last transcript: {}", e);
             }
         });

@@ -12,6 +12,7 @@ export const settingsSchema = z.object({
     language: z.string(),
     autoPaste: z.boolean(),
     autoCopyToClipboard: z.boolean(),
+    selectedModelId: z.string().nullable(), // Selected speech-to-text model
   }),
   shortcuts: z.object({
     pasteLastTranscript: z.string(),
@@ -24,6 +25,11 @@ export const settingsSchema = z.object({
   privacy: z.object({
     analytics: z.boolean(),
     errorLogging: z.boolean(),
+  }),
+  aiProcessing: z.object({
+    enabled: z.boolean(),
+    modelId: z.string().nullable(), // Selected post-processing model
+    expandSnippets: z.boolean(), // Whether to expand snippet triggers (e.g., "brb" -> "be right back")
   }),
 })
 
@@ -41,6 +47,7 @@ export const defaultSettings: Settings = {
     language: 'en',
     autoPaste: false,
     autoCopyToClipboard: false,
+    selectedModelId: null,
   },
   shortcuts: {
     pasteLastTranscript: 'CmdOrCtrl+Shift+V',
@@ -53,5 +60,10 @@ export const defaultSettings: Settings = {
   privacy: {
     analytics: false,
     errorLogging: true,
+  },
+  aiProcessing: {
+    enabled: false,
+    modelId: null,
+    expandSnippets: false,
   },
 }

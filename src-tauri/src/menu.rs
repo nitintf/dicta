@@ -1,5 +1,5 @@
-use crate::audio_devices::enumerate_audio_devices;
-use crate::models::LocalModelManager;
+use crate::features::audio::enumerate_audio_devices;
+use crate::features::models::LocalModelManager;
 use serde_json::json;
 use std::sync::Arc;
 use tauri::menu::{MenuBuilder, MenuItem, PredefinedMenuItem, SubmenuBuilder};
@@ -208,7 +208,9 @@ fn handle_tray_event(
             println!("Paste last transcript clicked");
             let app_clone = app.clone();
             tauri::async_runtime::spawn(async move {
-                if let Err(e) = crate::transcription::paste_last_transcript(app_clone).await {
+                if let Err(e) =
+                    crate::features::transcription::paste_last_transcript(app_clone).await
+                {
                     eprintln!("Failed to paste last transcript: {}", e);
                 }
             });

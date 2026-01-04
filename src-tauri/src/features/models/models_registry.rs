@@ -9,9 +9,18 @@ pub enum ModelType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ModelPurpose {
+    SpeechToText,
+    PostProcessing,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ModelProvider {
     #[serde(rename = "openai")]
     OpenAI,
+    #[serde(rename = "anthropic")]
+    Anthropic,
     #[serde(rename = "google")]
     Google,
     #[serde(rename = "assemblyai")]
@@ -20,6 +29,10 @@ pub enum ModelProvider {
     ElevenLabs,
     #[serde(rename = "local-whisper")]
     LocalWhisper,
+    #[serde(rename = "ollama")]
+    Ollama,
+    #[serde(rename = "lmstudio")]
+    LMStudio,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -30,6 +43,7 @@ pub struct ModelDefinition {
     pub provider: ModelProvider,
     #[serde(rename = "type")]
     pub model_type: ModelType,
+    pub purpose: ModelPurpose,
     /// Engine type for local models (e.g., "whisper", "llama")
     /// None for cloud models
     pub engine: Option<String>,
@@ -46,8 +60,8 @@ pub struct ModelDefinition {
     pub filename: Option<String>,
 }
 
-// Cloud models
-const CLOUD_MODELS: &[(&str, &str, &str, &str)] = &[
+// Speech-to-Text cloud models
+const STT_CLOUD_MODELS: &[(&str, &str, &str, &str)] = &[
     (
         "whisper-1",
         "Whisper",
@@ -65,6 +79,34 @@ const CLOUD_MODELS: &[(&str, &str, &str, &str)] = &[
         "Scribe V1",
         "elevenlabs",
         "ElevenLabs Scribe - High-quality speech-to-text with multilingual support",
+    ),
+];
+
+// Post-Processing cloud models
+const POST_PROCESSING_CLOUD_MODELS: &[(&str, &str, &str, &str)] = &[
+    (
+        "claude-3-5-sonnet-20241022",
+        "Claude 3.5 Sonnet",
+        "anthropic",
+        "Anthropic's most intelligent model - excellent for text enhancement and formatting",
+    ),
+    (
+        "claude-3-5-haiku-20241022",
+        "Claude 3.5 Haiku",
+        "anthropic",
+        "Fastest Claude model - great for quick post-processing",
+    ),
+    (
+        "gpt-4o",
+        "GPT-4o",
+        "openai",
+        "OpenAI's most advanced model - powerful text processing and enhancement",
+    ),
+    (
+        "gpt-4o-mini",
+        "GPT-4o Mini",
+        "openai",
+        "Affordable and fast OpenAI model - good for basic post-processing",
     ),
 ];
 
@@ -96,8 +138,8 @@ pub const WHISPER_MODELS: &[(&str, &str, &str)] = &[
 pub async fn get_all_models(app: AppHandle) -> Result<Vec<ModelDefinition>, String> {
     let mut models = Vec::new();
 
-    // Add cloud models
-    for (id, name, provider, description) in CLOUD_MODELS {
+    // Add speech-to-text cloud models
+    for (id, name, provider, description) in STT_CLOUD_MODELS {
         models.push(ModelDefinition {
             id: id.to_string(),
             name: name.to_string(),
@@ -109,7 +151,33 @@ pub async fn get_all_models(app: AppHandle) -> Result<Vec<ModelDefinition>, Stri
                 _ => continue,
             },
             model_type: ModelType::Cloud,
+            purpose: ModelPurpose::SpeechToText,
             engine: None, // Cloud models don't use local engines
+            size: None,
+            requires_api_key: true,
+            is_selected: false,
+            is_enabled: true,
+            is_downloaded: None,
+            path: None,
+            description: Some(description.to_string()),
+            download_url: None,
+            filename: None,
+        });
+    }
+
+    // Add post-processing cloud models
+    for (id, name, provider, description) in POST_PROCESSING_CLOUD_MODELS {
+        models.push(ModelDefinition {
+            id: id.to_string(),
+            name: name.to_string(),
+            provider: match *provider {
+                "anthropic" => ModelProvider::Anthropic,
+                "openai" => ModelProvider::OpenAI,
+                _ => continue,
+            },
+            model_type: ModelType::Cloud,
+            purpose: ModelPurpose::PostProcessing,
+            engine: None,
             size: None,
             requires_api_key: true,
             is_selected: false,
@@ -145,6 +213,7 @@ pub async fn get_all_models(app: AppHandle) -> Result<Vec<ModelDefinition>, Stri
             name: model_name.clone(),
             provider: ModelProvider::LocalWhisper,
             model_type: ModelType::Local,
+            purpose: ModelPurpose::SpeechToText,
             engine: Some("whisper".to_string()), // Uses Whisper engine
             size: Some(size.to_string()),
             requires_api_key: false,

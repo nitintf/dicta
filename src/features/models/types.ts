@@ -1,5 +1,7 @@
 export type ModelType = 'cloud' | 'local'
 
+export type ModelPurpose = 'speech-to-text' | 'post-processing'
+
 export type ModelStatus = 'stopped' | 'loading' | 'ready' | 'error'
 
 export type ModelProvider =
@@ -25,6 +27,7 @@ export interface TranscriptionModel {
   name: string
   provider: ModelProvider
   type: ModelType
+  purpose: ModelPurpose // What this model is used for
   engine?: string // Engine type for local models (e.g., "whisper", "llama")
   size?: string // For local models (e.g., "7B", "13B", "70B")
   requiresApiKey: boolean

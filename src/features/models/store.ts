@@ -123,14 +123,27 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
 
   initActiveModel: async () => {
     const store = await getTauriStore()
-    const activeModel = get().models.find(m => m.isSelected && m.isEnabled)
+    const models = get().models
 
-    if (activeModel) {
-      await store.set('activeModel', activeModel)
-      await store.save()
+    // Find active model for each purpose
+    const activeSpeechToTextModel = models.find(
+      m => m.isSelected && m.isEnabled && m.purpose === 'speech-to-text'
+    )
+    const activePostProcessingModel = models.find(
+      m => m.isSelected && m.isEnabled && m.purpose === 'post-processing'
+    )
+
+    // Store both active models
+    if (activeSpeechToTextModel) {
+      await store.set('activeSpeechToTextModel', activeSpeechToTextModel)
     }
+    if (activePostProcessingModel) {
+      await store.set('activePostProcessingModel', activePostProcessingModel)
+    }
+    await store.save()
 
-    return activeModel
+    // Return speech-to-text model for backward compatibility
+    return activeSpeechToTextModel
   },
 
   addModel: async model => {
@@ -223,13 +236,17 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
 
   selectModel: async id => {
     const currentModels = get().models
-    const previousModel = currentModels.find(m => m.isSelected)
     const newModel = currentModels.find(m => m.id === id)
 
     if (!newModel) {
       toast.error('Model not found')
       return
     }
+
+    // Find the previously selected model of the SAME purpose
+    const previousModel = currentModels.find(
+      m => m.isSelected && m.purpose === newModel.purpose
+    )
 
     // Validate cloud models have API key
     if (
@@ -253,8 +270,12 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
       return
     }
 
-    // Stop previous local model if switching away
-    if (previousModel?.type === 'local' && previousModel.id !== id) {
+    // Stop previous local model if switching away (only for speech-to-text models)
+    if (
+      previousModel?.type === 'local' &&
+      previousModel.id !== id &&
+      newModel.purpose === 'speech-to-text'
+    ) {
       try {
         await invoke('stop_whisper_model')
       } catch (error) {
@@ -262,10 +283,15 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
       }
     }
 
-    // Deselect all models and update status
+    // Deselect only models with the SAME purpose, then select the new one
     const newModels = currentModels.map(model => ({
       ...model,
-      isSelected: model.id === id,
+      isSelected:
+        model.id === id
+          ? true
+          : model.purpose === newModel.purpose
+            ? false
+            : model.isSelected,
       // Set status to stopped if it was the previous model
       status:
         model.id === previousModel?.id && previousModel?.type === 'local'

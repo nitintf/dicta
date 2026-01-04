@@ -5,13 +5,20 @@ use std::time::{Duration, Instant};
 use tauri::{command, AppHandle, Emitter, State};
 use tauri_plugin_store::StoreExt;
 use tokio::sync::Mutex;
-use uuid::Uuid;
 
-use crate::clipboard_utils;
-use crate::models::LocalModelManager;
-use crate::secure_storage;
+use crate::features::clipboard;
+use crate::features::models::LocalModelManager;
+use crate::features::security;
+use crate::utils::app_categorization::{categorize_app, AppCategory};
 
-use super::{elevenlabs_transcription, google_transcription, local_whisper, openai_transcription};
+use super::orchestrator_helpers::{
+    apply_ai_post_processing, create_empty_prompt_context, get_model_name,
+};
+use super::providers::{elevenlabs, google, local_whisper, openai};
+use crate::features::recordings::metadata::RecordingMetadata;
+use crate::features::recordings::storage::{
+    create_recording_folder, get_all_recordings, read_metadata, save_audio_file, save_metadata,
+};
 
 // Global state for debouncing paste operations
 static LAST_PASTE_TIME: std::sync::Mutex<Option<Instant>> = std::sync::Mutex::new(None);
@@ -38,59 +45,124 @@ pub struct TranscribeRequest {
 }
 
 /// Unified transcription command that handles the entire flow:
-/// 1. Get selected model from store
+/// 1. Get selected model and focused app
 /// 2. Transcribe using appropriate provider
-/// 3. Save transcription to store
-/// 4. Copy and paste text
-/// 5. Emit events for UI updates
+/// 3. Apply AI post-processing if enabled
+/// 4. Save to recordings/TIMESTAMP/ folder
+/// 5. Copy and paste text
+/// 6. Emit events for UI updates
 #[command]
 pub async fn transcribe_and_process(
     request: TranscribeRequest,
     app: AppHandle,
     local_model_state: State<'_, Arc<Mutex<LocalModelManager>>>,
 ) -> Result<Option<TranscriptionRecord>, String> {
-    // Step 1: Get selected model from store
+    let start_time = Instant::now();
+
+    // Step 1: Get selected transcription model
     let selected_model = get_selected_model(&app)?;
 
-    // Step 2: Check if audio is silent before making expensive API calls
+    // Step 2: Get focused application
+    let focused_app =
+        clipboard::get_focused_app()
+            .await
+            .unwrap_or_else(|_| clipboard::FocusedApp {
+                name: "Unknown".to_string(),
+                bundle_id: "".to_string(),
+            });
+    let focused_app_name = focused_app.name.clone();
+
+    // Step 3: Check if audio is silent
     if is_audio_silent(&request.audio_data)? {
         println!("Audio is silent, skipping transcription");
         return Ok(None);
     }
 
-    // Step 3: Transcribe using appropriate provider
-    let transcription_text = transcribe_with_provider(
+    // Step 4: Transcribe using appropriate provider
+    let raw_transcription = transcribe_with_provider(
         &app,
-        request.audio_data,
+        request.audio_data.clone(),
         &selected_model,
-        request.language,
+        request.language.clone(),
         local_model_state,
     )
     .await?;
 
-    // Also skip if transcription is empty (backup check)
-    if transcription_text.trim().is_empty() {
+    // Skip if transcription is empty
+    if raw_transcription.trim().is_empty() {
         println!("Transcription is empty, skipping");
         return Ok(None);
     }
 
-    // Step 3: Create transcription record
-    let word_count = transcription_text.split_whitespace().count();
-    let record = TranscriptionRecord {
-        id: Uuid::new_v4().to_string(),
-        text: transcription_text.clone(),
-        timestamp: request.timestamp,
-        duration: request.duration,
-        word_count,
-        model_id: selected_model.id,
-        provider: selected_model.provider,
-    };
+    // Step 5: Create recording folder
+    let recording_folder = create_recording_folder(&app, request.timestamp)?;
 
-    // Step 4: Save transcription to store
-    save_transcription(&app, &record)?;
+    // Step 6: Save audio file
+    save_audio_file(&recording_folder, &request.audio_data)?;
 
-    // Step 5: Check transcription settings
+    // Step 7: Check if AI post-processing is enabled
     let settings = get_settings(&app)?;
+    let ai_processing_enabled = settings
+        .get("aiProcessing")
+        .and_then(|a| a.get("enabled"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+
+    let (final_text, post_processed_text, style_applied, style_category, prompt_context) =
+        if ai_processing_enabled {
+            // Apply AI post-processing
+            let result =
+                apply_ai_post_processing(&app, &raw_transcription, &focused_app.name, &settings)
+                    .await?;
+            (
+                result.final_text,
+                Some(result.post_processed_text),
+                result.style_applied,
+                result.style_category,
+                result.prompt_context,
+            )
+        } else {
+            // No post-processing
+            (
+                raw_transcription.clone(),
+                None,
+                None,
+                None,
+                create_empty_prompt_context(),
+            )
+        };
+
+    // Step 8: Calculate processing time
+    let processing_time = start_time.elapsed().as_millis() as u64;
+
+    // Step 9: Determine app category
+    let app_category = categorize_app(&focused_app.name);
+
+    // Step 10: Create comprehensive metadata
+    let metadata = RecordingMetadata::new(
+        raw_transcription.clone(),
+        final_text.clone(),
+        post_processed_text,
+        request.timestamp,
+        request.duration.unwrap_or(0.0) * 1000.0, // Convert to ms
+        processing_time,
+        selected_model.id.clone(),
+        get_model_name(&selected_model),
+        selected_model.provider.clone(),
+        request.language.unwrap_or_else(|| "en".to_string()),
+        "".to_string(), // recording_device - TODO: get from settings
+        focused_app.name.clone(),
+        app_category.as_str().to_string(),
+        ai_processing_enabled,
+        style_applied,
+        style_category,
+        prompt_context,
+    );
+
+    // Step 11: Save metadata
+    save_metadata(&recording_folder, &metadata)?;
+
+    // Step 12: Handle auto-paste/copy
     let auto_paste = settings
         .get("transcription")
         .and_then(|t| t.get("autoPaste"))
@@ -103,31 +175,34 @@ pub async fn transcribe_and_process(
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
 
-    // Step 6: Handle auto-paste (paste to active application)
     if auto_paste {
-        // Hide voice input window BEFORE pasting
-        // This ensures the original app becomes frontmost for the paste command
         app.emit("hide_voice_input", ())
             .map_err(|e| format!("Failed to emit hide event: {}", e))?;
 
-        // Copy and paste text to active application
-        if let Err(e) = clipboard_utils::copy_and_paste(record.text.clone()).await {
+        if let Err(e) = clipboard::copy_and_paste(final_text.clone()).await {
             eprintln!("Failed to copy and paste: {}", e);
-            // Don't fail the whole operation if copy/paste fails
         }
     } else if auto_copy_to_clipboard {
-        // Just copy to clipboard without pasting
         use tauri_plugin_clipboard_manager::ClipboardExt;
-        if let Err(e) = app.clipboard().write_text(record.text.clone()) {
+        if let Err(e) = app.clipboard().write_text(final_text.clone()) {
             eprintln!("Failed to copy to clipboard: {}", e);
         }
     }
 
-    // Step 7: Emit events for UI updates
+    // Step 13: Emit events for UI updates
     app.emit("transcriptions-changed", ())
         .map_err(|e| format!("Failed to emit sync event: {}", e))?;
 
-    Ok(Some(record))
+    // Return record for backward compatibility
+    Ok(Some(TranscriptionRecord {
+        id: request.timestamp.to_string(),
+        text: final_text,
+        timestamp: request.timestamp,
+        duration: request.duration,
+        word_count: raw_transcription.split_whitespace().count(),
+        model_id: selected_model.id,
+        provider: selected_model.provider,
+    }))
 }
 
 /// Get settings from the settings store
@@ -144,31 +219,33 @@ fn get_settings(app: &AppHandle) -> Result<Value, String> {
     Ok(settings)
 }
 
-/// Get the selected model from the models store
+/// Get the selected speech-to-text model from settings
 fn get_selected_model(app: &AppHandle) -> Result<SelectedModel, String> {
-    let store = app
+    // Get selected model ID from settings
+    let settings = get_settings(app)?;
+    let selected_model_id = settings
+        .get("transcription")
+        .and_then(|t| t.get("selectedModelId"))
+        .and_then(|v| v.as_str())
+        .ok_or("No speech-to-text model selected in settings")?;
+
+    // Get the model details from models store
+    let models_store = app
         .store("models.json")
         .map_err(|e| format!("Failed to get models store: {}", e))?;
 
-    let models_value = store.get("models").ok_or("No models found in store")?;
+    let models_value = models_store
+        .get("models")
+        .ok_or("No models found in store")?;
     let models = models_value.as_array().ok_or("Models is not an array")?;
 
-    // Find the selected model
+    // Find the model by ID
     for model_value in models {
         let model = model_value.as_object().ok_or("Model is not an object")?;
 
-        let is_selected = model
-            .get("isSelected")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
+        let id = model.get("id").and_then(|v| v.as_str()).unwrap_or("");
 
-        if is_selected {
-            let id = model
-                .get("id")
-                .and_then(|v| v.as_str())
-                .ok_or("Model ID not found")?
-                .to_string();
-
+        if id == selected_model_id {
             let provider = model
                 .get("provider")
                 .and_then(|v| v.as_str())
@@ -177,66 +254,37 @@ fn get_selected_model(app: &AppHandle) -> Result<SelectedModel, String> {
 
             let path = model.get("path").and_then(|v| v.as_str()).map(String::from);
 
-            return Ok(SelectedModel { id, provider, path });
+            return Ok(SelectedModel {
+                id: id.to_string(),
+                provider,
+                path,
+            });
         }
     }
 
-    Err("No model is selected".to_string())
+    Err(format!(
+        "Model '{}' not found in models store",
+        selected_model_id
+    ))
 }
 
-/// Save transcription to the transcriptions store
-fn save_transcription(app: &AppHandle, record: &TranscriptionRecord) -> Result<(), String> {
-    let store = app
-        .store("transcriptions.json")
-        .map_err(|e| format!("Failed to get transcriptions store: {}", e))?;
-
-    // Get existing transcriptions or create empty array
-    let mut transcriptions = store
-        .get("transcriptions")
-        .and_then(|v| v.as_array().cloned())
-        .unwrap_or_default();
-
-    // Add new transcription at the beginning (newest first)
-    transcriptions.insert(
-        0,
-        serde_json::to_value(record).map_err(|e| format!("Failed to serialize: {}", e))?,
-    );
-
-    // Save back to store
-    store.set("transcriptions", Value::Array(transcriptions));
-
-    store
-        .save()
-        .map_err(|e| format!("Failed to save store: {}", e))?;
-
-    Ok(())
-}
-
-/// Get the last (most recent) transcript from the store
+/// Get the last (most recent) transcript from the new recordings storage
 #[command]
 pub async fn get_last_transcript(app: AppHandle) -> Result<String, String> {
-    let store = app
-        .store("transcriptions.json")
-        .map_err(|e| format!("Failed to get transcriptions store: {}", e))?;
+    // Get all recordings sorted by timestamp (newest first)
+    let recordings = get_all_recordings(&app)?;
 
-    // Get transcriptions array and clone it to avoid lifetime issues
-    let transcriptions = store
-        .get("transcriptions")
-        .and_then(|v| v.as_array().cloned())
-        .ok_or("No transcriptions found")?;
+    if recordings.is_empty() {
+        return Err("No recordings found".to_string());
+    }
 
-    // Get the first item (most recent)
-    let last_transcript = transcriptions
-        .first()
-        .ok_or("No transcriptions available")?;
+    // Get the first (most recent) recording
+    let last_recording = recordings.first().ok_or("No recordings available")?;
 
-    // Extract the text field
-    let text = last_transcript
-        .get("text")
-        .and_then(|v| v.as_str())
-        .ok_or("Transcript text not found")?;
+    // Read metadata from the recording
+    let metadata = read_metadata(last_recording)?;
 
-    Ok(text.to_string())
+    Ok(metadata.result)
 }
 
 /// Paste the last transcript using the clipboard
@@ -268,7 +316,7 @@ pub async fn paste_last_transcript(app: AppHandle) -> Result<(), String> {
     let text = get_last_transcript(app).await?;
 
     // Copy and paste it
-    clipboard_utils::copy_and_paste(text)
+    clipboard::copy_and_paste(text)
         .await
         .map_err(|e| format!("Failed to paste transcript: {}", e))?;
 
@@ -285,11 +333,11 @@ async fn transcribe_with_provider(
 ) -> Result<String, String> {
     let response = match model.provider.as_str() {
         "openai" => {
-            let api_key = secure_storage::get_api_key_internal(app, &model.id)
+            let api_key = security::get_api_key_internal(app, &model.id)
                 .await
                 .map_err(|_| "OpenAI API key not found. Please add your API key in settings.")?;
 
-            openai_transcription::transcribe_with_openai(
+            openai::transcribe_with_openai(
                 audio_data,
                 api_key,
                 Some(model.id.clone()),
@@ -299,7 +347,7 @@ async fn transcribe_with_provider(
             .await?
         }
         "google" => {
-            let api_key = secure_storage::get_api_key_internal(app, &model.id)
+            let api_key = security::get_api_key_internal(app, &model.id)
                 .await
                 .map_err(|_| "Google API key not found. Please add your API key in settings.")?;
 
@@ -309,8 +357,7 @@ async fn transcribe_with_provider(
                 .map(|lang| format!("{}-US", lang.to_uppercase()))
                 .or(Some("en-US".to_string()));
 
-            google_transcription::transcribe_with_google(audio_data, api_key, google_language)
-                .await?
+            google::transcribe_with_google(audio_data, api_key, google_language).await?
         }
         "local-whisper" => {
             local_whisper::transcribe_with_local_whisper(
@@ -322,13 +369,13 @@ async fn transcribe_with_provider(
             .await?
         }
         "elevenlabs" => {
-            let api_key = secure_storage::get_api_key_internal(app, &model.id)
+            let api_key = security::get_api_key_internal(app, &model.id)
                 .await
                 .map_err(|_| {
                     "ElevenLabs API key not found. Please add your API key in settings."
                 })?;
 
-            elevenlabs_transcription::transcribe_with_elevenlabs(
+            elevenlabs::transcribe_with_elevenlabs(
                 audio_data,
                 api_key,
                 Some(model.id.clone()),
@@ -343,10 +390,10 @@ async fn transcribe_with_provider(
 }
 
 #[derive(Debug, Clone)]
-struct SelectedModel {
-    id: String,
-    provider: String,
-    path: Option<String>,
+pub struct SelectedModel {
+    pub id: String,
+    pub provider: String,
+    pub path: Option<String>,
 }
 
 /// Detects if audio is silent by analyzing the waveform

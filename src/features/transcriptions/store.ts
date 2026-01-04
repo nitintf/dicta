@@ -1,27 +1,10 @@
+import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
-import { Store, load } from '@tauri-apps/plugin-store'
 import { create } from 'zustand'
 
 import { Transcription } from './schema'
 
 import type { TranscriptionsStore } from './types'
-
-let tauriStore: Store | null = null
-
-const getTauriStore = async () => {
-  if (!tauriStore) {
-    tauriStore = await load('transcriptions.json')
-  }
-  return tauriStore
-}
-
-function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
-}
-
-function countWords(text: string): number {
-  return text.trim().split(/\s+/).filter(Boolean).length
-}
 
 function isToday(timestamp: number): boolean {
   const today = new Date()
@@ -40,12 +23,12 @@ export const useTranscriptionsStore = create<TranscriptionsStore>(
 
     initialize: async () => {
       try {
-        const store = await getTauriStore()
-        const storedTranscriptions =
-          await store.get<Transcription[]>('transcriptions')
+        const transcriptions = await invoke<Transcription[]>(
+          'get_all_transcriptions'
+        )
 
         set({
-          transcriptions: storedTranscriptions ?? [],
+          transcriptions: transcriptions ?? [],
           initialized: true,
         })
       } catch (error) {
@@ -55,62 +38,45 @@ export const useTranscriptionsStore = create<TranscriptionsStore>(
     },
 
     addTranscription: async transcription => {
-      const newTranscription: Transcription = {
-        ...transcription,
-        id: generateId(),
-        wordCount: countWords(transcription.text),
-      }
+      // Note: This is now handled by the Rust backend during transcription
+      // We just need to refresh from the recordings folder
+      await get().initialize()
 
-      const newTranscriptions = [newTranscription, ...get().transcriptions]
-
-      // Save to Tauri store (automatically syncs across windows)
-      try {
-        const store = await getTauriStore()
-        // Don't persist audioBlob as it can't be serialized
-        const serializable = newTranscriptions.map(t => ({
-          ...t,
-          audioBlob: undefined,
-          audioUrl: undefined,
-        }))
-        await store.set('transcriptions', serializable)
-        await store.save()
-      } catch (error) {
-        console.error('Error saving transcription:', error)
-      }
-
-      set({ transcriptions: newTranscriptions })
-      return newTranscription
+      // Return the most recent transcription (should be the one just added)
+      const transcriptions = get().transcriptions
+      return transcriptions[0] ?? transcription
     },
 
     deleteTranscription: async id => {
-      const newTranscriptions = get().transcriptions.filter(t => t.id !== id)
-
       try {
-        const store = await getTauriStore()
-        const serializable = newTranscriptions.map(t => ({
-          ...t,
-          audioBlob: undefined,
-          audioUrl: undefined,
-        }))
-        await store.set('transcriptions', serializable)
-        await store.save()
+        // Parse timestamp from id (format: "timestamp-randomstring" or just "timestamp")
+        const timestamp = parseInt(id.split('-')[0])
+
+        // Delete from recordings folder via Rust command
+        await invoke('delete_recording', { timestamp })
+
+        // Update local state
+        const newTranscriptions = get().transcriptions.filter(t => t.id !== id)
+        set({ transcriptions: newTranscriptions })
       } catch (error) {
         console.error('Error deleting transcription:', error)
+        throw error
       }
-
-      set({ transcriptions: newTranscriptions })
     },
 
     clearAll: async () => {
       try {
-        const store = await getTauriStore()
-        await store.set('transcriptions', [])
-        await store.save()
+        // Delete all recordings
+        const transcriptions = get().transcriptions
+        for (const transcription of transcriptions) {
+          const timestamp = parseInt(transcription.id.split('-')[0])
+          await invoke('delete_recording', { timestamp })
+        }
+
+        set({ transcriptions: [] })
       } catch (error) {
         console.error('Error clearing transcriptions:', error)
       }
-
-      set({ transcriptions: [] })
     },
 
     getStats: () => {

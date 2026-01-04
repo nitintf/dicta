@@ -4,31 +4,26 @@ use tauri::{Emitter, Listener, Manager};
 use tauri::ActivationPolicy;
 
 use tauri_plugin_store::StoreExt;
-use window::WebviewWindowExt;
 
-mod audio_devices;
-mod clipboard_utils;
-mod data_export;
+mod features;
 mod menu;
-mod models;
-mod secure_storage;
-mod shortcut_utils;
-mod shortcuts;
-mod transcription;
-mod window;
+mod utils;
 
-use audio_devices::enumerate_audio_devices;
-use data_export::{export_all_data, import_all_data, import_from_json};
-use models::{
+use features::ai_processing::post_process_transcript;
+use features::audio::enumerate_audio_devices;
+use features::data::{export_all_data, import_all_data, import_from_json};
+use features::models::{
     delete_local_model, download_local_model, get_all_models, get_local_model_status,
     start_local_model, stop_local_model, LocalModelManager,
 };
-use secure_storage::{get_api_key, has_api_key, remove_api_key, store_api_key};
-use shortcuts::{
+use features::recordings::{delete_recording, get_all_transcriptions};
+use features::security::{get_api_key, has_api_key, remove_api_key, store_api_key};
+use features::shortcuts::{
     disable_global_shortcuts, enable_global_shortcuts, update_paste_shortcut,
     update_voice_input_shortcut, ShortcutManager,
 };
-use transcription::{get_last_transcript, paste_last_transcript, transcribe_and_process};
+use features::transcription::{get_last_transcript, paste_last_transcript, transcribe_and_process};
+use features::window::WebviewWindowExt;
 
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -108,7 +103,7 @@ async fn auto_start_selected_model(
         // Start the model using the generic manager
         let mut manager = model_manager.lock().await;
 
-        use models::engines::ModelConfig;
+        use features::models::engines::ModelConfig;
         let config = ModelConfig {
             model_path: model_path.to_string(),
             model_name: model_name.to_string(),
@@ -264,7 +259,7 @@ pub fn run() {
         );
 
         // Register global shortcuts
-        shortcuts::register_voice_input_shortcut(app)?;
+        features::shortcuts::register_voice_input_shortcut(app)?;
 
         // Auto-start selected local model if downloaded
         let app_handle = app.app_handle().clone();
@@ -281,6 +276,7 @@ pub fn run() {
     let app = builder
         .invoke_handler(tauri::generate_handler![
             transcribe_and_process,
+            post_process_transcript,
             get_all_models,
             // Local model download commands
             download_local_model,
@@ -297,7 +293,7 @@ pub fn run() {
             // Audio devices
             enumerate_audio_devices,
             // Clipboard utilities
-            clipboard_utils::get_focused_app,
+            features::clipboard::get_focused_app,
             // Shortcuts management
             update_voice_input_shortcut,
             update_paste_shortcut,
@@ -306,6 +302,9 @@ pub fn run() {
             // Transcription utilities
             get_last_transcript,
             paste_last_transcript,
+            // Recordings management
+            get_all_transcriptions,
+            delete_recording,
             // System preferences
             set_show_in_dock,
             // Data export/import

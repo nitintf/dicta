@@ -17,4 +17,8 @@ export interface SettingsStore {
   setAnalytics: (enabled: boolean) => Promise<void>
   setErrorLogging: (enabled: boolean) => Promise<void>
   resetSettings: () => Promise<void>
+  setAiProcessingEnabled: (enabled: boolean) => Promise<void>
+  setAiProcessingModel: (modelId: string | null) => Promise<void>
+  setExpandSnippets: (enabled: boolean) => Promise<void>
+  setSelectedTranscriptionModel: (modelId: string | null) => Promise<void>
 }
