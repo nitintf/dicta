@@ -42,11 +42,32 @@ export function ModelActionsMenu({
   const isRunning = model.status === 'ready'
   const isStopped = model.status === 'stopped' || !model.status
 
-  const hasSelectionActions = !model.isSelected
-  const hasConfigActions = model.requiresApiKey
-  const hasLifecycleActions = isLocalModel && model.isDownloaded
-  const hasDangerActions =
-    (isLocalModel && model.isDownloaded) || model.hasApiKey
+  // Calculate which sections actually have visible content
+  const showSelectionSection = !model.isSelected
+  const showConfigSection = model.requiresApiKey
+  const showDownloadSection = isLocalModel && !model.isDownloaded
+  const showLifecycleSection =
+    isLocalModel &&
+    model.isDownloaded &&
+    ((isStopped && !!onStartModel) || (isRunning && !!onStopModel))
+  const showDeleteAction = isLocalModel && model.isDownloaded
+  const showRemoveApiKeyAction = model.hasApiKey
+  const showDangerSection = showDeleteAction || showRemoveApiKeyAction
+
+  // Helper to check if there's content after a section
+  const hasContentAfterSelection =
+    showConfigSection ||
+    showDownloadSection ||
+    showLifecycleSection ||
+    showDangerSection
+  const hasContentAfterConfig =
+    showDownloadSection || showLifecycleSection || showDangerSection
+  const hasContentAfterDownload = showLifecycleSection || showDangerSection
+  const hasContentBeforeDanger =
+    showSelectionSection ||
+    showConfigSection ||
+    showDownloadSection ||
+    showLifecycleSection
 
   return (
     <DropdownMenu>
@@ -57,7 +78,7 @@ export function ModelActionsMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         {/* SELECTION SECTION */}
-        {hasSelectionActions && (
+        {showSelectionSection && (
           <>
             <DropdownMenuItem
               onClick={() => onSelectModel(model.id)}
@@ -70,12 +91,12 @@ export function ModelActionsMenu({
                 </span>
               </div>
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
+            {hasContentAfterSelection && <DropdownMenuSeparator />}
           </>
         )}
 
         {/* CONFIGURATION SECTION */}
-        {hasConfigActions && (
+        {showConfigSection && (
           <>
             {model.hasApiKey ? (
               <DropdownMenuItem
@@ -102,12 +123,12 @@ export function ModelActionsMenu({
                 </div>
               </DropdownMenuItem>
             )}
-            <DropdownMenuSeparator />
+            {hasContentAfterConfig && <DropdownMenuSeparator />}
           </>
         )}
 
         {/* DOWNLOAD SECTION (for local models not yet downloaded) */}
-        {isLocalModel && !model.isDownloaded && (
+        {showDownloadSection && (
           <>
             <DropdownMenuItem
               onClick={() => onDownloadModel(model)}
@@ -123,12 +144,12 @@ export function ModelActionsMenu({
                 </span>
               </div>
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
+            {hasContentAfterDownload && <DropdownMenuSeparator />}
           </>
         )}
 
         {/* LIFECYCLE SECTION (for downloaded local models) */}
-        {hasLifecycleActions && (
+        {showLifecycleSection && (
           <>
             {isStopped && onStartModel && (
               <DropdownMenuItem
@@ -160,12 +181,10 @@ export function ModelActionsMenu({
         )}
 
         {/* DANGER ZONE */}
-        {hasDangerActions && (
+        {showDangerSection && (
           <>
-            {(hasLifecycleActions ||
-              hasConfigActions ||
-              hasSelectionActions) && <DropdownMenuSeparator />}
-            {isLocalModel && model.isDownloaded && (
+            {hasContentBeforeDanger && <DropdownMenuSeparator />}
+            {showDeleteAction && (
               <DropdownMenuItem
                 onClick={() => onDeleteModel(model)}
                 className="rounded-sm text-destructive focus:text-destructive focus:bg-destructive/10"
@@ -176,7 +195,7 @@ export function ModelActionsMenu({
                 </div>
               </DropdownMenuItem>
             )}
-            {model.hasApiKey && (
+            {showRemoveApiKeyAction && (
               <DropdownMenuItem
                 onClick={() => onRemoveApiKey(model.id)}
                 className="rounded-sm text-destructive focus:text-destructive focus:bg-destructive/10"
