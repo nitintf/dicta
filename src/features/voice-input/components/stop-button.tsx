@@ -19,7 +19,7 @@ export function StopButton({
       onClick={onClick}
       size="icon"
       className={cn(
-        'relative h-5 w-5 shrink-0 rounded-full text-white bg-rose-400 hover:bg-rose-300',
+        'relative h-5 w-5 shrink-0 rounded-full text-white bg-rose-400 hover:bg-rose-300 -ml-1.5',
         {
           'bg-neutral-500 hover:bg-neutral-600 cursor-wait': isProcessing,
           'opacity-40 cursor-not-allowed': !isRecording || isProcessing,

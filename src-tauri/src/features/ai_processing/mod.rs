@@ -76,6 +76,17 @@ fn build_system_prompt(
 ) -> String {
     let mut prompt = "You are an intelligent transcript post-processor. Your job is to enhance transcripts with proper formatting, punctuation, and smart corrections while preserving the speaker's natural voice and intent.".to_string();
 
+    // Add vibe/style prompt FIRST with highest priority
+    if let Some(vibe) = vibe_prompt {
+        if !vibe.trim().is_empty() {
+            prompt.push_str("\n\n=== STYLE DIRECTIVE (HIGHEST PRIORITY) ===");
+            prompt.push_str("\nThe following style requirements OVERRIDE all other formatting rules below. Follow this style directive above everything else:");
+            prompt.push_str("\n");
+            prompt.push_str(vibe);
+            prompt.push_str("\n=== END STYLE DIRECTIVE ===");
+        }
+    }
+
     prompt.push_str("\n\nCORE PRINCIPLES:");
     prompt.push_str("\n1. PRESERVE words that make sense - never change words that are contextually appropriate");
     prompt.push_str("\n2. CORRECT nonsensical words - if a word doesn't make sense in context, intelligently predict and replace it with the intended word");
@@ -130,17 +141,22 @@ fn build_system_prompt(
     prompt.push_str("\n- Use exclamation points when appropriate (excitement, emphasis)");
     prompt.push_str("\n- Add commas for lists, clauses, and natural breathing points");
     prompt.push_str("\n- Use proper sentence capitalization");
-    prompt.push_str("\n\nQUOTATION MARKS AND REPORTED SPEECH:");
-    prompt.push_str("\n- When the speaker reports what someone said or a message/error text, use quotation marks");
-    prompt.push_str("\n- Format: 'The message says, \"Text here\"' OR 'He said, \"Text here\"'");
-    prompt.push_str("\n- Use COMMA before the quote, NOT a colon");
-    prompt.push_str("\n- Examples:");
-    prompt.push_str("\n  * INPUT: 'The error message is this box is not found'");
-    prompt.push_str("\n    OUTPUT: 'The error message is, \"This box is not found.\"'");
-    prompt.push_str("\n  * INPUT: 'He told me the meeting is at 3'");
-    prompt.push_str("\n    OUTPUT: 'He told me, \"The meeting is at 3.\"'");
-    prompt.push_str("\n  * WRONG: 'The message is: text here' (don't use colon)");
-    prompt.push_str("\n  * CORRECT: 'The message is, \"Text here\"' (comma + quotes)");
+    prompt.push_str("\n\nQUOTATION MARKS (USE SPARINGLY):");
+    prompt.push_str("\n- AVOID quotation marks in most cases - only use when absolutely necessary");
+    prompt.push_str(
+        "\n- DO NOT add quotes just because someone is paraphrasing or describing something",
+    );
+    prompt.push_str("\n- ONLY use quotation marks when:");
+    prompt.push_str("\n  * The speaker explicitly says 'quote' or 'unquote'");
+    prompt.push_str(
+        "\n  * The speaker is reading exact text verbatim (like an error message word-for-word)",
+    );
+    prompt.push_str("\n  * It's a direct quote attribution: 'John said, \"exact words\"'");
+    prompt.push_str("\n- When in doubt, DO NOT use quotation marks");
+    prompt.push_str("\n- Examples of when NOT to use quotes:");
+    prompt.push_str("\n  * 'He told me the meeting is at 3' → Keep as: 'He told me the meeting is at 3.' (NO quotes)");
+    prompt.push_str("\n  * 'The error says something about not found' → Keep as: 'The error says something about not found.' (NO quotes)");
+    prompt.push_str("\n  * 'She mentioned we should try again' → Keep as: 'She mentioned we should try again.' (NO quotes)");
     prompt.push_str("\n\nCOMMA USAGE:");
     prompt.push_str("\n- Do NOT add commas after introductory words unless there's a clear pause");
     prompt.push_str("\n- Examples of when NOT to add comma:");
@@ -227,14 +243,6 @@ fn build_system_prompt(
     prompt.push_str("\n  ✓ NO blank lines between list items");
     prompt.push_str("\n  ✓ Sequence words REMOVED (First/Then/Next/Also/Lastly/Finally)");
     prompt.push_str("\n  ✓ Each item capitalized and concise");
-
-    if let Some(vibe) = vibe_prompt {
-        if !vibe.trim().is_empty() {
-            prompt.push_str("\n\nADDITIONAL STYLE REQUIREMENTS:");
-            prompt.push_str("\n");
-            prompt.push_str(vibe);
-        }
-    }
 
     prompt.push_str("\n\nOUTPUT FORMAT:");
     prompt

@@ -45,7 +45,6 @@ export const VoiceInput = forwardRef<VoiceInputHandle>((_props, ref) => {
     [isRecording, stopRecording]
   )
 
-  // Handle ESC key to cancel recording
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -82,9 +81,7 @@ export const VoiceInput = forwardRef<VoiceInputHandle>((_props, ref) => {
         disabled={isProcessing || feedbackMessage !== null}
       />
 
-      {/* Waveform - center, takes most space */}
       <div className="flex-1 flex items-center justify-center h-full relative">
-        {/* Show waveform or processing animation */}
         {isProcessing ? (
           <TranscriberProcessing />
         ) : (
@@ -104,7 +101,6 @@ export const VoiceInput = forwardRef<VoiceInputHandle>((_props, ref) => {
           />
         )}
 
-        {/* Overlay feedback text on top of waveform */}
         {feedbackText && feedbackMessage !== 'processing' && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm rounded-full">
             <div className="text-white text-xs font-medium px-3 text-center">

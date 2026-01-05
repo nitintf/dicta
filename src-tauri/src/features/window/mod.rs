@@ -88,7 +88,7 @@ impl WebviewWindowExt for WebviewWindow {
         unsafe {
             if let Ok(handle) = self.ns_window() {
                 let handle = handle as cocoa_id;
-                let size = NSSize::new(240.0, 50.0);
+                let size = NSSize::new(240.0, 40.0);
                 let _: () = msg_send![handle, setContentSize: size];
 
                 // Position at bottom center of screen

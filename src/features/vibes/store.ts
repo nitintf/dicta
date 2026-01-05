@@ -32,10 +32,6 @@ export const useVibesStore = create<VibesStore>((set, get) => ({
       const storedSelectedVibes =
         await store.get<Record<VibeCategory, string | null>>('selectedVibes')
 
-      // If no stored vibes, use defaults
-      const vibes =
-        storedVibes && storedVibes.length > 0 ? storedVibes : defaultVibes
-
       // Default selected vibes
       const defaultSelectedVibes: Record<VibeCategory, string | null> = {
         personal: 'personal-relaxed',
@@ -44,11 +40,23 @@ export const useVibesStore = create<VibesStore>((set, get) => ({
         other: 'other-raw',
       }
 
-      set({
-        vibes: vibes,
-        selectedVibes: storedSelectedVibes ?? defaultSelectedVibes,
-        initialized: true,
-      })
+      // If no stored vibes, persist defaults to storage
+      if (!storedVibes || storedVibes.length === 0) {
+        await store.set('vibes', defaultVibes)
+        await store.set('selectedVibes', defaultSelectedVibes)
+        await store.save()
+        set({
+          vibes: defaultVibes,
+          selectedVibes: defaultSelectedVibes,
+          initialized: true,
+        })
+      } else {
+        set({
+          vibes: storedVibes,
+          selectedVibes: storedSelectedVibes ?? defaultSelectedVibes,
+          initialized: true,
+        })
+      }
     } catch (error) {
       console.error('Error initializing vibes store:', error)
       set({
