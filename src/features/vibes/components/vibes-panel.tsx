@@ -1,6 +1,5 @@
 import { Plus } from 'lucide-react'
-import { motion } from 'motion/react'
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 
 import appleMailIcon from '@/assets/apps/apple-mail.svg'
 import appleNotesIcon from '@/assets/apps/apple-notes.svg'
@@ -145,21 +144,6 @@ export function VibesPanel() {
   const [creatingForCategory, setCreatingForCategory] =
     useState<VibeCategory | null>(null)
 
-  const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
-  const [underlineStyle, setUnderlineStyle] = useState({ left: 0, width: 0 })
-
-  useLayoutEffect(() => {
-    const activeIndex = CATEGORIES.indexOf(activeTab)
-    const activeTabElement = tabRefs.current[activeIndex]
-
-    if (activeTabElement) {
-      setUnderlineStyle({
-        left: activeTabElement.offsetLeft,
-        width: activeTabElement.offsetWidth,
-      })
-    }
-  }, [activeTab])
-
   const handleEdit = (vibe: Vibe) => {
     setEditingVibe({
       id: vibe.id,
@@ -201,33 +185,12 @@ export function VibesPanel() {
         onValueChange={v => setActiveTab(v as VibeCategory)}
         className="gap-4"
       >
-        <TabsList className="bg-background relative rounded-none border-b p-0 w-auto">
-          {CATEGORIES.map((category, index) => (
-            <TabsTrigger
-              key={category}
-              value={category}
-              ref={el => {
-                tabRefs.current[index] = el
-              }}
-              className="bg-background w-min dark:data-[state=active]:bg-background relative z-10 rounded-none border-0 data-[state=active]:shadow-none"
-            >
+        <TabsList>
+          {CATEGORIES.map(category => (
+            <TabsTrigger key={category} value={category}>
               {CATEGORY_CONFIG[category].label}
             </TabsTrigger>
           ))}
-
-          <motion.div
-            className="bg-primary w-min absolute bottom-0 z-20 h-0.5"
-            layoutId="underline-vibes"
-            style={{
-              left: underlineStyle.left,
-              width: underlineStyle.width,
-            }}
-            transition={{
-              type: 'spring',
-              stiffness: 400,
-              damping: 40,
-            }}
-          />
         </TabsList>
 
         {CATEGORIES.map(category => {

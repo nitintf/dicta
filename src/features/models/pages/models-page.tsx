@@ -1,12 +1,4 @@
-import { motion } from 'motion/react'
-import {
-  useEffect,
-  useState,
-  useMemo,
-  useCallback,
-  useRef,
-  useLayoutEffect,
-} from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
@@ -39,9 +31,6 @@ export function ModelsPage() {
     startLocalModel,
     stopLocalModel,
   } = useModelsStore()
-
-  const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
-  const [underlineStyle, setUnderlineStyle] = useState({ left: 0, width: 0 })
 
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
@@ -114,18 +103,6 @@ export function ModelsPage() {
     [models]
   )
 
-  useLayoutEffect(() => {
-    const activeIndex = ['speech-to-text', 'post-processing'].indexOf(activeTab)
-    const activeTabElement = tabRefs.current[activeIndex]
-
-    if (activeTabElement) {
-      setUnderlineStyle({
-        left: activeTabElement.offsetLeft,
-        width: activeTabElement.offsetWidth,
-      })
-    }
-  }, [activeTab])
-
   const activeModels =
     activeTab === 'speech-to-text' ? sttModels : postProcessingModels
 
@@ -159,44 +136,19 @@ export function ModelsPage() {
         }
         className="mt-6"
       >
-        <TabsList className="bg-background relative rounded-none border-b p-0 w-auto">
-          <TabsTrigger
-            value="speech-to-text"
-            ref={el => {
-              tabRefs.current[0] = el
-            }}
-            className="bg-background w-min dark:data-[state=active]:bg-background relative z-10 rounded-none border-0 data-[state=active]:shadow-none"
-          >
-            Speech-to-Text ({sttModels.length})
-          </TabsTrigger>
-          <TabsTrigger
-            value="post-processing"
-            ref={el => {
-              tabRefs.current[1] = el
-            }}
-            className="bg-background w-min dark:data-[state=active]:bg-background relative z-10 rounded-none border-0 data-[state=active]:shadow-none"
-          >
-            Post-Processing ({postProcessingModels.length})
-          </TabsTrigger>
-
-          <motion.div
-            className="bg-primary w-min absolute bottom-0 z-20 h-0.5"
-            layoutId="underline-models"
-            style={{
-              left: underlineStyle.left,
-              width: underlineStyle.width,
-            }}
-            transition={{
-              type: 'spring',
-              stiffness: 400,
-              damping: 40,
-            }}
-          />
-        </TabsList>
+        <div className="flex items-center justify-between">
+          <TabsList>
+            <TabsTrigger value="speech-to-text">
+              Speech-to-Text ({sttModels.length})
+            </TabsTrigger>
+            <TabsTrigger value="post-processing">
+              Post-Processing ({postProcessingModels.length})
+            </TabsTrigger>
+          </TabsList>
+          <ModelsSearch value={globalFilter ?? ''} onChange={setGlobalFilter} />
+        </div>
 
         <TabsContent value="speech-to-text" className="mt-6">
-          <ModelsSearch value={globalFilter ?? ''} onChange={setGlobalFilter} />
-
           <ModelsTable
             models={sttModels}
             columns={columns}
@@ -210,8 +162,6 @@ export function ModelsPage() {
         </TabsContent>
 
         <TabsContent value="post-processing" className="mt-6">
-          <ModelsSearch value={globalFilter ?? ''} onChange={setGlobalFilter} />
-
           <ModelsTable
             models={postProcessingModels}
             columns={columns}

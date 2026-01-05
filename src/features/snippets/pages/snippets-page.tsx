@@ -41,9 +41,8 @@ export function SnippetsPage() {
   }
 
   return (
-    <>
-      <div className="h-full p-8 pt-16 pb-16">
-        {/* Header */}
+    <div className="h-full w-full flex flex-col px-8">
+      <div className="shrink-0 pt-16">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-4">Snippets</h1>
           <div className="flex items-center gap-6 text-sm">
@@ -59,8 +58,6 @@ export function SnippetsPage() {
             </div>
           </div>
         </div>
-
-        {/* Info Section */}
         <InfoCard variant="accent" className="mb-8">
           <InfoCard.Content className="flex flex-col">
             <div>
@@ -82,73 +79,73 @@ export function SnippetsPage() {
             </div>
           </InfoCard.Content>
         </InfoCard>
+      </div>
 
-        {/* Content */}
-        <div className="w-full">
-          <h2 className="text-sm font-medium text-muted-foreground mb-4 uppercase tracking-wide">
-            Your Snippets
-          </h2>
-          <div className="space-y-2">
-            {snippets.length === 0 ? (
-              /* Empty state */
-              <div className="flex flex-col items-center justify-center py-16 px-4 rounded-lg bg-transparent">
-                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-transparent mb-3">
-                  <Sparkles className="w-5 h-5 text-gray-400" />
-                </div>
-                <h3 className="text-sm font-medium text-foreground mb-1">
-                  No snippets yet
-                </h3>
-                <p className="text-xs text-muted-foreground text-center max-w-sm">
-                  Create your first snippet to save time on repetitive text
-                </p>
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto pb-8">
+        <h2 className="text-sm font-medium text-muted-foreground mb-4 uppercase tracking-wide">
+          Your Snippets
+        </h2>
+        <div className="space-y-2">
+          {snippets.length === 0 ? (
+            /* Empty state */
+            <div className="flex flex-col items-center justify-center py-16 px-4 rounded-lg bg-transparent">
+              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-transparent mb-3">
+                <Sparkles className="w-5 h-5 text-gray-400" />
               </div>
-            ) : (
-              /* Snippets list */
-              <div className="rounded-xl border border-border bg-background overflow-hidden">
-                {snippets.map((snippet, index) => (
-                  <div
-                    key={snippet.id}
-                    className={`group p-4 hover:bg-muted/30 transition-colors ${
-                      index !== snippets.length - 1
-                        ? 'border-b border-border'
-                        : ''
-                    }`}
-                  >
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <h3 className="text-sm font-medium text-foreground">
-                          {snippet.snippet}
-                        </h3>
-                        <span className="text-xs text-muted-foreground">→</span>
-                        <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">
-                          {snippet.expansion}
-                        </p>
-                      </div>
+              <h3 className="text-sm font-medium text-foreground mb-1">
+                No snippets yet
+              </h3>
+              <p className="text-xs text-muted-foreground text-center max-w-sm">
+                Create your first snippet to save time on repetitive text
+              </p>
+            </div>
+          ) : (
+            /* Snippets list */
+            <div className="rounded-xl border border-border bg-background overflow-hidden">
+              {snippets.map((snippet, index) => (
+                <div
+                  key={snippet.id}
+                  className={`group p-4 hover:bg-muted/30 transition-colors ${
+                    index !== snippets.length - 1
+                      ? 'border-b border-border'
+                      : ''
+                  }`}
+                >
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <h3 className="text-sm font-medium text-foreground">
+                        {snippet.snippet}
+                      </h3>
+                      <span className="text-xs text-muted-foreground">→</span>
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">
+                        {snippet.expansion}
+                      </p>
+                    </div>
 
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-4">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(snippet)}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(snippet.id)}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-4">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEdit(snippet)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(snippet.id)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -157,6 +154,6 @@ export function SnippetsPage() {
         onOpenChange={setDialogOpen}
         editingSnippet={editingSnippet}
       />
-    </>
+    </div>
   )
 }
