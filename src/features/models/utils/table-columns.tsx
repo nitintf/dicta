@@ -27,6 +27,8 @@ export function createModelColumns(
     {
       accessorKey: 'name',
       header: 'Model',
+      size: 400,
+      minSize: 300,
       cell: ({ row }) => (
         <ModelCell
           model={row.original}
@@ -38,6 +40,9 @@ export function createModelColumns(
     {
       accessorKey: 'type',
       header: 'Type',
+      size: 100,
+      minSize: 100,
+      maxSize: 100,
       cell: ({ row }) => <ModelTypeBadge type={row.original.type} />,
       filterFn: (row, id, value) => {
         return value.includes(row.getValue(id))
@@ -46,11 +51,17 @@ export function createModelColumns(
     {
       accessorKey: 'apiKey',
       header: 'Status',
+      size: 150,
+      minSize: 150,
+      maxSize: 200,
       cell: ({ row }) => <ModelConfigStatus model={row.original} />,
     },
     {
       id: 'actions',
       header: '',
+      size: 60,
+      minSize: 60,
+      maxSize: 60,
       cell: ({ row }) => (
         <ModelActionsMenu
           model={row.original}
