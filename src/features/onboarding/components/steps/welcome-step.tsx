@@ -19,21 +19,21 @@ export function WelcomeStep() {
             stiffness: 200,
             damping: 20,
           }}
-          className="mx-auto mb-8 flex size-16 items-center justify-center rounded-full border-2 border-onboarding-border bg-onboarding-bg"
+          className="mx-auto mb-8 flex size-16 items-center justify-center rounded-full border-2 border-border bg-background"
         >
-          <Rocket size={28} className="text-onboarding-text" strokeWidth={2} />
+          <Rocket size={28} className="text-foreground" strokeWidth={2} />
         </motion.div>
 
-        <h1 className="mb-3 text-2xl font-bold tracking-tight text-onboarding-text">
+        <h1 className="mb-3 text-2xl font-bold tracking-tight text-foreground">
           Welcome to Dicta!
         </h1>
 
-        <p className="mb-6 text-sm leading-relaxed max-w-md mx-auto text-onboarding-text-muted">
+        <p className="mb-6 text-sm leading-relaxed max-w-md mx-auto text-muted-foreground">
           Your powerful voice-to-text companion. Transform your thoughts into
           text instantly.
         </p>
 
-        <div className="mb-8 flex items-center justify-center gap-6 text-xs text-onboarding-text-muted">
+        <div className="mb-8 flex items-center justify-center gap-6 text-xs text-muted-foreground">
           <div className="flex items-center gap-1.5">
             <svg
               width="14"

@@ -18,7 +18,6 @@ export interface SettingsStore {
   setErrorLogging: (enabled: boolean) => Promise<void>
   resetSettings: () => Promise<void>
   setAiProcessingEnabled: (enabled: boolean) => Promise<void>
-  setAiProcessingModel: (modelId: string | null) => Promise<void>
-  setExpandSnippets: (enabled: boolean) => Promise<void>
-  setSelectedTranscriptionModel: (modelId: string | null) => Promise<void>
+  setSpeechToTextModel: (modelId: string | null) => Promise<void>
+  setPostProcessingModel: (modelId: string | null) => Promise<void>
 }

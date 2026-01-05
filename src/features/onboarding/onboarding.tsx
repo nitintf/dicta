@@ -1,3 +1,5 @@
+import { useEffect } from 'react'
+
 import { OnboardingLayout } from './components/onboarding-layout'
 import {
   WelcomeStep,
@@ -15,7 +17,12 @@ const stepComponents = [
 ]
 
 export function OnboardingPage() {
-  const { currentStep } = useOnboarding()
+  const { currentStep, setCurrentStep } = useOnboarding()
+
+  // Always start from step 0 when onboarding page is mounted
+  useEffect(() => {
+    setCurrentStep(0)
+  }, [setCurrentStep])
 
   const StepComponent = stepComponents[currentStep]
 

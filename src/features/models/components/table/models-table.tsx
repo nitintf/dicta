@@ -87,7 +87,6 @@ export function ModelsTable({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && 'selected'}
-                  className={!row.original.isEnabled ? 'opacity-50' : ''}
                 >
                   {row.getVisibleCells().map(cell => (
                     <TableCell key={cell.id}>

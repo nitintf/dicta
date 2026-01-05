@@ -13,8 +13,8 @@ use features::ai_processing::post_process_transcript;
 use features::audio::enumerate_audio_devices;
 use features::data::{export_all_data, import_all_data, import_from_json};
 use features::models::{
-    delete_local_model, download_local_model, get_all_models, get_local_model_status,
-    start_local_model, stop_local_model, LocalModelManager,
+    auto_start_selected_models, delete_local_model, download_local_model, get_all_models,
+    get_local_model_status, start_local_model, stop_local_model, LocalModelManager,
 };
 use features::recordings::{delete_recording, get_all_transcriptions};
 use features::security::{get_api_key, has_api_key, remove_api_key, store_api_key};
@@ -29,108 +29,6 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 pub const SPOTLIGHT_LABEL: &str = "voice-input";
-
-/// Auto-start the selected local model if it's downloaded
-async fn auto_start_selected_model(
-    app: &tauri::AppHandle,
-    model_manager: Arc<Mutex<LocalModelManager>>,
-) -> Result<(), String> {
-    // Get the models store
-    let store = app
-        .store("models.json")
-        .map_err(|e| format!("Failed to get models store: {}", e))?;
-
-    let models = store
-        .get("models")
-        .and_then(|v| v.as_array().cloned())
-        .ok_or("No models found in store")?;
-
-    for model in models {
-        let obj = model.as_object().ok_or("Model is not an object")?;
-
-        let is_selected = obj
-            .get("isSelected")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
-
-        if !is_selected {
-            continue;
-        }
-
-        let model_type = obj
-            .get("type")
-            .and_then(|v| v.as_str())
-            .ok_or("Model type not found")?;
-
-        // Only auto-start local models (works for any local model, not just whisper)
-        if model_type != "local" {
-            return Ok(());
-        }
-
-        let is_downloaded = obj
-            .get("isDownloaded")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
-
-        if !is_downloaded {
-            println!("Selected model is not downloaded, skipping auto-start");
-            return Ok(());
-        }
-
-        let model_id = obj
-            .get("id")
-            .and_then(|v| v.as_str())
-            .ok_or("Model ID not found")?;
-
-        let model_path = obj
-            .get("path")
-            .and_then(|v| v.as_str())
-            .ok_or("Model path not found")?;
-
-        let engine_type = obj
-            .get("engine")
-            .and_then(|v| v.as_str())
-            .ok_or("Engine type not found for local model")?;
-
-        // Get model name (use the name field, or derive from ID if not available)
-        let model_name = obj.get("name").and_then(|v| v.as_str()).unwrap_or(model_id);
-
-        println!(
-            "Auto-starting local model: {} (engine: {}) at {}",
-            model_name, engine_type, model_path
-        );
-
-        // Start the model using the generic manager
-        let mut manager = model_manager.lock().await;
-
-        use features::models::engines::ModelConfig;
-        let config = ModelConfig {
-            model_path: model_path.to_string(),
-            model_name: model_name.to_string(),
-            language: None,
-        };
-
-        manager
-            .load_model(engine_type, config)
-            .map_err(|e| format!("Failed to load model: {}", e))?;
-
-        // Emit status event
-        app.emit(
-            "local-model-status",
-            serde_json::json!({
-                "status": "ready",
-                "modelName": model_name,
-                "modelId": model_id,
-            }),
-        )
-        .map_err(|e| format!("Failed to emit status: {}", e))?;
-
-        println!("Successfully auto-started model: {}", model_name);
-        return Ok(());
-    }
-
-    Ok(())
-}
 
 #[cfg(target_os = "macos")]
 #[tauri::command]
@@ -261,12 +159,12 @@ pub fn run() {
         // Register global shortcuts
         features::shortcuts::register_voice_input_shortcut(app)?;
 
-        // Auto-start selected local model if downloaded
+        // Auto-start selected local models if downloaded
         let app_handle = app.app_handle().clone();
         let model_manager_clone = model_manager_cleanup.clone();
         tauri::async_runtime::spawn(async move {
-            if let Err(e) = auto_start_selected_model(&app_handle, model_manager_clone).await {
-                eprintln!("Failed to auto-start model on startup: {}", e);
+            if let Err(e) = auto_start_selected_models(&app_handle, model_manager_clone).await {
+                eprintln!("Failed to auto-start models on startup: {}", e);
             }
         });
 

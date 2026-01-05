@@ -22,7 +22,7 @@ export function OnboardingLayout({ children, onBack }: OnboardingLayoutProps) {
   }
 
   return (
-    <div className="flex h-screen bg-onboarding-bg">
+    <div className="flex h-screen bg-background">
       {/* Drag region for Tauri */}
       <div
         data-tauri-drag-region

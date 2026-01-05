@@ -15,7 +15,6 @@ export interface ColumnActions {
   onRemoveApiKey: (id: string) => void
   onDownloadModel: (model: TranscriptionModel) => void
   onDeleteModel: (model: TranscriptionModel) => void
-  onToggleEnabled: (id: string) => void
   onRefreshStatus: (id: string) => Promise<void>
   onStartModel: (id: string) => Promise<void>
   onStopModel: (id: string) => Promise<void>
@@ -61,7 +60,6 @@ export function createModelColumns(
           onRemoveApiKey={actions.onRemoveApiKey}
           onDownloadModel={actions.onDownloadModel}
           onDeleteModel={actions.onDeleteModel}
-          onToggleEnabled={actions.onToggleEnabled}
           onStartModel={actions.onStartModel}
           onStopModel={actions.onStopModel}
         />

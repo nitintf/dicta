@@ -108,29 +108,71 @@ pub async fn transcribe_and_process(
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
 
-    let (final_text, post_processed_text, style_applied, style_category, prompt_context) =
-        if ai_processing_enabled {
-            // Apply AI post-processing
-            let result =
-                apply_ai_post_processing(&app, &raw_transcription, &focused_app.name, &settings)
-                    .await?;
-            (
+    let (
+        final_text,
+        post_processed_text,
+        style_applied,
+        style_category,
+        prompt_context,
+        post_processing_model_id,
+        post_processing_model_name,
+        post_processing_provider,
+    ) = if ai_processing_enabled {
+        // Try to apply AI post-processing
+        match apply_ai_post_processing(&app, &raw_transcription, &focused_app.name, &settings).await
+        {
+            Ok(result) => (
                 result.final_text,
                 Some(result.post_processed_text),
                 result.style_applied,
                 result.style_category,
                 result.prompt_context,
-            )
-        } else {
-            // No post-processing
-            (
-                raw_transcription.clone(),
-                None,
-                None,
-                None,
-                create_empty_prompt_context(),
-            )
-        };
+                Some(result.model_id),
+                result.model_name,
+                result.provider,
+            ),
+            Err(e) => {
+                // Post-processing failed (likely no model selected) - continue without it
+                eprintln!(
+                    "Post-processing failed: {}. Continuing with raw transcription.",
+                    e
+                );
+
+                // Show notification to user
+                use tauri_plugin_notification::NotificationExt;
+                let _ = app
+                    .notification()
+                    .builder()
+                    .title("Post-processing Skipped")
+                    .body("No post-processing model selected. Go to Models to select one.")
+                    .show();
+
+                // Use raw transcription
+                (
+                    raw_transcription.clone(),
+                    None,
+                    None,
+                    None,
+                    create_empty_prompt_context(),
+                    None,
+                    None,
+                    None,
+                )
+            }
+        }
+    } else {
+        // No post-processing
+        (
+            raw_transcription.clone(),
+            None,
+            None,
+            None,
+            create_empty_prompt_context(),
+            None,
+            None,
+            None,
+        )
+    };
 
     // Step 8: Calculate processing time
     let processing_time = start_time.elapsed().as_millis() as u64;
@@ -149,6 +191,9 @@ pub async fn transcribe_and_process(
         selected_model.id.clone(),
         get_model_name(&selected_model),
         selected_model.provider.clone(),
+        post_processing_model_id,
+        post_processing_model_name,
+        post_processing_provider,
         request.language.unwrap_or_else(|| "en".to_string()),
         "".to_string(), // recording_device - TODO: get from settings
         focused_app.name.clone(),
@@ -225,7 +270,7 @@ fn get_selected_model(app: &AppHandle) -> Result<SelectedModel, String> {
     let settings = get_settings(app)?;
     let selected_model_id = settings
         .get("transcription")
-        .and_then(|t| t.get("selectedModelId"))
+        .and_then(|t| t.get("speechToTextModelId"))
         .and_then(|v| v.as_str())
         .ok_or("No speech-to-text model selected in settings")?;
 

@@ -14,10 +14,15 @@ pub struct RecordingMetadata {
     pub duration: f64,        // Duration in milliseconds
     pub processing_time: u64, // Time taken to process in ms
 
-    // Model information
+    // Speech-to-text model information
     pub model_key: String,  // Model ID used for transcription
     pub model_name: String, // Human-readable model name
     pub provider: String,   // Provider (openai, google, local-whisper, etc.)
+
+    // Post-processing model information
+    pub post_processing_model_id: Option<String>, // Post-processing model ID (if used)
+    pub post_processing_model_name: Option<String>, // Post-processing model name (if used)
+    pub post_processing_provider: Option<String>, // Post-processing provider (if used)
 
     // Language
     pub language_selected: String, // Language code (e.g., "en")
@@ -73,6 +78,7 @@ pub struct ApplicationContext {
 }
 
 impl RecordingMetadata {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         raw_result: String,
         final_result: String,
@@ -83,6 +89,9 @@ impl RecordingMetadata {
         model_key: String,
         model_name: String,
         provider: String,
+        post_processing_model_id: Option<String>,
+        post_processing_model_name: Option<String>,
+        post_processing_provider: Option<String>,
         language: String,
         recording_device: String,
         focused_app_name: String,
@@ -110,6 +119,9 @@ impl RecordingMetadata {
             model_key,
             model_name,
             provider,
+            post_processing_model_id,
+            post_processing_model_name,
+            post_processing_provider,
             language_selected: language,
             recording_device,
             post_processing_enabled,

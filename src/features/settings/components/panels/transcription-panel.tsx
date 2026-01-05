@@ -11,12 +11,10 @@ export function TranscriptionPanel() {
     setAutoPaste,
     setAutoCopyToClipboard,
     setAiProcessingEnabled,
-    setExpandSnippets,
   } = useSettingsStore()
   const [autoPasteLoading, setAutoPasteLoading] = useState(false)
   const [autoCopyLoading, setAutoCopyLoading] = useState(false)
   const [aiProcessingLoading, setAiProcessingLoading] = useState(false)
-  const [useSnippetsLoading, setUseSnippetsLoading] = useState(false)
 
   const handleAutoPasteToggle = async (checked: boolean) => {
     setAutoPasteLoading(true)
@@ -48,17 +46,6 @@ export function TranscriptionPanel() {
       console.error('Failed to toggle AI processing:', error)
     } finally {
       setAiProcessingLoading(false)
-    }
-  }
-
-  const handleUseSnippetsToggle = async (checked: boolean) => {
-    setUseSnippetsLoading(true)
-    try {
-      await setExpandSnippets(checked)
-    } catch (error) {
-      console.error('Failed to toggle use snippets:', error)
-    } finally {
-      setUseSnippetsLoading(false)
     }
   }
 
@@ -96,7 +83,7 @@ export function TranscriptionPanel() {
       <SettingsSection title="AI Post-Processing">
         <SettingItem
           title="Enable AI post-processing"
-          description="Enhance transcriptions with vocabulary and formatting styles. Optionally expand snippets."
+          description="Enhance transcriptions with AI-powered formatting and refinement"
           action={
             <Switch
               checked={settings.aiProcessing.enabled}
@@ -105,20 +92,6 @@ export function TranscriptionPanel() {
             />
           }
         />
-
-        {settings.aiProcessing.enabled && (
-          <SettingItem
-            title="Expand snippets"
-            description="Automatically expand snippet triggers in transcriptions"
-            action={
-              <Switch
-                checked={settings.aiProcessing.expandSnippets}
-                onCheckedChange={handleUseSnippetsToggle}
-                disabled={useSnippetsLoading}
-              />
-            }
-          />
-        )}
       </SettingsSection>
     </SettingsPanel>
   )

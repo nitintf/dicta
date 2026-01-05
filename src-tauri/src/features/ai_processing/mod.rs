@@ -75,45 +75,66 @@ fn build_system_prompt(
     snippets: Option<&Vec<SnippetData>>,
     vibe_prompt: Option<&String>,
 ) -> String {
-    let mut prompt = "You are a transcript post-processor. Your job is to enhance the given transcript while preserving the original meaning and intent.".to_string();
+    let mut prompt = "You are a transcript post-processor. Your job is to enhance the given transcript with proper formatting while preserving the EXACT words spoken.".to_string();
+
+    prompt.push_str("\n\nCORE RULES:");
+    prompt.push_str("\n1. NEVER change, replace, or rephrase the words that were actually spoken");
+    prompt.push_str("\n2. ONLY add punctuation (periods, commas, question marks, etc.)");
+    prompt.push_str("\n3. ONLY add paragraph breaks and formatting where appropriate");
+    prompt.push_str("\n4. Keep the original word order and phrasing exactly as spoken");
 
     // Add vocabulary context
     if let Some(words) = vocabulary {
         if !words.is_empty() {
-            prompt.push_str("\n\nVOCABULARY CONTEXT:\n");
-            prompt.push_str("Ensure these words are properly recognized and capitalized:\n");
+            prompt.push_str("\n\nVOCABULARY - Proper Capitalization:");
+            prompt.push_str("\nIf any of these words appear in the transcript, ensure they are properly capitalized:");
+            prompt.push_str("\n");
             prompt.push_str(&words.join(", "));
+            prompt.push_str("\nOnly apply this to words that are ALREADY in the transcript - do not insert these words.");
         }
     }
 
     // Add snippet expansion instructions
     if let Some(snips) = snippets {
         if !snips.is_empty() {
-            prompt.push_str("\n\nSNIPPET EXPANSION:\n");
+            prompt.push_str("\n\nSNIPPET EXPANSION:");
             prompt.push_str(
-                "If you detect these triggers in the transcript, expand them to their full form:\n",
+                "\nOnly if you detect these exact trigger phrases in the transcript, expand them:",
             );
             for snip in snips {
-                prompt.push_str(&format!("- '{}' → '{}'\n", snip.trigger, snip.expansion));
+                prompt.push_str(&format!(
+                    "\n- If the transcript contains '{}', replace it with '{}'",
+                    snip.trigger, snip.expansion
+                ));
             }
-
-            prompt.push_str("\nSNIPPET CONTEXT:\n");
-            prompt.push_str("Use these snippets as examples of the user's common phrases and communication style:\n");
-            for snip in snips {
-                prompt.push_str(&format!("- {}\n", snip.expansion));
-            }
+            prompt.push_str(
+                "\nDo NOT insert snippets if their triggers are not present in the transcript.",
+            );
         }
     }
+
+    // Add smart formatting instructions
+    prompt.push_str("\n\nSMART FORMATTING:");
+    prompt.push_str("\n- If the transcript describes a list (e.g., 'I need to buy apples bananas and oranges'), format it as a bulleted list");
+    prompt.push_str(
+        "\n- If the transcript has natural paragraph breaks (topic changes), add paragraph spacing",
+    );
+    prompt.push_str("\n- If the transcript asks a question, ensure it ends with a question mark");
+    prompt.push_str("\n- Use proper sentence capitalization");
 
     // Add vibe formatting instructions
     if let Some(vibe) = vibe_prompt {
         if !vibe.trim().is_empty() {
-            prompt.push_str("\n\nFORMATTING STYLE:\n");
+            prompt.push_str("\n\nADDITIONAL STYLE REQUIREMENTS:");
+            prompt.push_str("\n");
             prompt.push_str(vibe);
         }
     }
 
-    prompt.push_str("\n\nIMPORTANT: Return only the enhanced transcript text. Do not include any explanations, meta-commentary, or wrapper text like 'Here is the enhanced version:'. Just return the processed transcript directly.");
+    prompt.push_str("\n\nOUTPUT FORMAT:");
+    prompt.push_str("\n- Return ONLY the enhanced transcript");
+    prompt.push_str("\n- Do NOT add explanations, meta-commentary, or phrases like 'Here is the enhanced version:'");
+    prompt.push_str("\n- The output should be the exact words from the input, just with better punctuation and formatting");
 
     prompt
 }

@@ -1,6 +1,5 @@
 import { Lock, Check, AlertCircle } from 'lucide-react'
 import { motion } from 'motion/react'
-import { useEffect } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { usePermissions } from '@/hooks/use-permissions'
@@ -13,12 +12,6 @@ export function AccessibilityStep() {
 
   const isGranted = permissions.accessibility === 'granted'
   const isDenied = permissions.accessibility === 'denied'
-
-  useEffect(() => {
-    if (isGranted) {
-      markStepComplete('accessibility')
-    }
-  }, [isGranted, markStepComplete])
 
   const handleRequest = async () => {
     const granted = await requestAccessibilityPermission()
@@ -44,21 +37,21 @@ export function AccessibilityStep() {
             stiffness: 200,
             damping: 20,
           }}
-          className="mx-auto mb-8 flex size-16 items-center justify-center rounded-full border-2 border-onboarding-border bg-onboarding-bg"
+          className="mx-auto mb-8 flex size-16 items-center justify-center rounded-full border-2 border-border bg-background"
         >
-          <Lock size={28} className="text-onboarding-text" strokeWidth={2} />
+          <Lock size={28} className="text-foreground" strokeWidth={2} />
         </motion.div>
 
-        <h2 className="mb-3 text-center text-2xl font-bold tracking-tight text-onboarding-text">
+        <h2 className="mb-3 text-center text-2xl font-bold tracking-tight text-foreground">
           Accessibility Access
         </h2>
 
-        <p className="mb-6 text-center text-sm text-onboarding-text-muted">
+        <p className="mb-6 text-center text-sm text-muted-foreground">
           Required for global shortcuts
         </p>
 
         <div className="space-y-6">
-          <div className="rounded-xl border border-onboarding-border p-5 bg-gray-50/50">
+          <div className="rounded-xl border border-border p-5 bg-muted/50">
             <div className="flex items-start gap-3">
               <div className="flex-shrink-0 mt-0.5">
                 <svg
@@ -74,10 +67,10 @@ export function AccessibilityStep() {
                 </svg>
               </div>
               <div className="flex-1">
-                <h3 className="font-medium mb-1.5 text-sm text-onboarding-text">
+                <h3 className="font-medium mb-1.5 text-sm text-foreground">
                   Why we need this
                 </h3>
-                <p className="text-xs leading-relaxed text-onboarding-text-muted">
+                <p className="text-xs leading-relaxed text-muted-foreground">
                   This allows Dicta to respond to keyboard shortcuts even when
                   the app is in the background, making it quick and easy to
                   start transcribing anytime.
@@ -88,7 +81,7 @@ export function AccessibilityStep() {
 
           {isGranted ? (
             <div className="space-y-3">
-              <div className="flex items-center justify-center gap-2 text-sm rounded-lg p-3 text-onboarding-primary bg-onboarding-primary-light">
+              <div className="flex items-center justify-center gap-2 text-sm rounded-lg p-3 text-primary bg-primary/10">
                 <Check size={18} strokeWidth={2.5} />
                 <span className="font-medium">
                   Accessibility access granted!

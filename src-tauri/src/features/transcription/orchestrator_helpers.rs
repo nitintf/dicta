@@ -15,6 +15,9 @@ pub struct PostProcessingResult {
     pub style_applied: Option<String>,
     pub style_category: Option<String>,
     pub prompt_context: PromptContext,
+    pub model_id: String,
+    pub model_name: Option<String>,
+    pub provider: Option<String>,
 }
 
 /// Apply AI post-processing to transcription
@@ -29,16 +32,17 @@ pub async fn apply_ai_post_processing(
         .get("aiProcessing")
         .ok_or("AI processing settings not found")?;
 
-    let model_id = ai_settings
-        .get("modelId")
+    // Get post-processing model ID - if not selected, return error to skip post-processing
+    let model_id = match ai_settings
+        .get("postProcessingModelId")
         .and_then(|v| v.as_str())
-        .ok_or("No AI model selected for post-processing")?
-        .to_string();
-
-    let expand_snippets = ai_settings
-        .get("expandSnippets")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false);
+    {
+        Some(id) => id.to_string(),
+        None => {
+            // No model selected - caller should handle this gracefully
+            return Err("No post-processing model selected".to_string());
+        }
+    };
 
     // Determine app category and get appropriate vibe
     let app_category = categorize_app(focused_app_name);
@@ -76,11 +80,39 @@ pub async fn apply_ai_post_processing(
         },
     };
 
+    // Get model details from models store
+    let models_store = app
+        .store("models.json")
+        .map_err(|e| format!("Failed to get models store: {}", e))?;
+
+    let models = models_store
+        .get("models")
+        .and_then(|v| v.as_array().cloned())
+        .ok_or("No models found in store")?;
+
+    let (model_name, provider) = models
+        .iter()
+        .find(|m| {
+            m.get("id")
+                .and_then(|v| v.as_str())
+                .map(|id| id == model_id.as_str())
+                .unwrap_or(false)
+        })
+        .and_then(|model| {
+            let name = model.get("name").and_then(|v| v.as_str()).map(String::from);
+            let prov = model
+                .get("provider")
+                .and_then(|v| v.as_str())
+                .map(String::from);
+            Some((name, prov))
+        })
+        .unwrap_or((None, None));
+
     // Call AI post-processing
     let post_processed_text = post_process_transcript(
         PostProcessingRequest {
             text: raw_text.to_string(),
-            model_id,
+            model_id: model_id.clone(),
             vocabulary,
             snippets,
             vibe_prompt: vibe_prompt.clone(),
@@ -95,6 +127,9 @@ pub async fn apply_ai_post_processing(
         style_applied: vibe_name,
         style_category: Some(app_category.as_str().to_string()),
         prompt_context,
+        model_id,
+        model_name,
+        provider,
     })
 }
 

@@ -121,25 +121,21 @@ export function ModelDownloadStep() {
             stiffness: 200,
             damping: 20,
           }}
-          className="mx-auto mb-8 flex size-16 items-center justify-center rounded-full border-2 border-onboarding-border bg-onboarding-bg"
+          className="mx-auto mb-8 flex size-16 items-center justify-center rounded-full border-2 border-border bg-background"
         >
-          <Download
-            size={28}
-            className="text-onboarding-text"
-            strokeWidth={2}
-          />
+          <Download size={28} className="text-foreground" strokeWidth={2} />
         </motion.div>
 
-        <h2 className="mb-3 text-center text-2xl font-bold tracking-tight text-onboarding-text">
+        <h2 className="mb-3 text-center text-2xl font-bold tracking-tight text-foreground">
           Download AI Model
         </h2>
 
-        <p className="mb-6 text-center text-sm text-onboarding-text-muted">
+        <p className="mb-6 text-center text-sm text-muted-foreground">
           Download Whisper Tiny (75 MB) for offline transcription
         </p>
 
         <div className="space-y-6">
-          <div className="rounded-xl border border-onboarding-border p-5 bg-gray-50/50">
+          <div className="rounded-xl border border-border p-5 bg-muted/50">
             <div className="flex items-start gap-3">
               <div className="flex-shrink-0 mt-0.5">
                 <svg
@@ -155,10 +151,10 @@ export function ModelDownloadStep() {
                 </svg>
               </div>
               <div className="flex-1">
-                <h3 className="font-medium mb-1.5 text-sm text-onboarding-text">
+                <h3 className="font-medium mb-1.5 text-sm text-foreground">
                   Why download this?
                 </h3>
-                <p className="text-xs leading-relaxed text-onboarding-text-muted">
+                <p className="text-xs leading-relaxed text-muted-foreground">
                   Whisper Tiny is a lightweight AI model that runs completely
                   offline on your device. No internet required, fully private,
                   and no API costs.
@@ -169,7 +165,7 @@ export function ModelDownloadStep() {
 
           {isDownloaded ? (
             <div className="space-y-3">
-              <div className="flex items-center justify-center gap-2 text-sm rounded-lg p-3 text-onboarding-primary bg-onboarding-primary-light">
+              <div className="flex items-center justify-center gap-2 text-sm rounded-lg p-3 text-primary bg-primary/10">
                 <Check size={18} strokeWidth={2.5} />
                 <span className="font-medium">
                   Model downloaded successfully!
@@ -182,14 +178,14 @@ export function ModelDownloadStep() {
           ) : isDownloading ? (
             <div className="space-y-3">
               <div className="space-y-2">
-                <div className="flex justify-between text-xs text-onboarding-text-muted">
+                <div className="flex justify-between text-xs text-muted-foreground">
                   <span>Downloading...</span>
                   <span>
                     {downloadedMB} MB / {totalMB} MB
                   </span>
                 </div>
                 <Progress value={progress} className="h-2" />
-                <p className="text-center text-xs text-onboarding-text-muted">
+                <p className="text-center text-xs text-muted-foreground">
                   {progress.toFixed(1)}% complete
                 </p>
               </div>

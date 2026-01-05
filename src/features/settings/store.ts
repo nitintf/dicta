@@ -38,8 +38,8 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
           autoPaste: storedSettings?.transcription?.autoPaste ?? false,
           autoCopyToClipboard:
             storedSettings?.transcription?.autoCopyToClipboard ?? false,
-          selectedModelId:
-            storedSettings?.transcription?.selectedModelId ?? null,
+          speechToTextModelId:
+            storedSettings?.transcription?.speechToTextModelId ?? null,
         },
         shortcuts: {
           pasteLastTranscript:
@@ -59,8 +59,8 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
         },
         aiProcessing: {
           enabled: storedSettings?.aiProcessing?.enabled ?? false,
-          modelId: storedSettings?.aiProcessing?.modelId ?? null,
-          expandSnippets: storedSettings?.aiProcessing?.expandSnippets ?? false,
+          postProcessingModelId:
+            storedSettings?.aiProcessing?.postProcessingModelId ?? null,
         },
       }
 
@@ -329,57 +329,39 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     }
   },
 
-  setAiProcessingModel: async (modelId: string | null) => {
-    try {
-      const store = await getTauriStore()
-      const newSettings = {
-        ...get().settings,
-        aiProcessing: {
-          ...get().settings.aiProcessing,
-          modelId,
-        },
-      }
-      await store.set('settings', newSettings)
-      await store.save()
-      set({ settings: newSettings })
-    } catch (error) {
-      console.error('Error setting AI processing model:', error)
-    }
-  },
-
-  setExpandSnippets: async (enabled: boolean) => {
-    try {
-      const store = await getTauriStore()
-      const newSettings = {
-        ...get().settings,
-        aiProcessing: {
-          ...get().settings.aiProcessing,
-          expandSnippets: enabled,
-        },
-      }
-      await store.set('settings', newSettings)
-      await store.save()
-      set({ settings: newSettings })
-    } catch (error) {
-      console.error('Error toggling expand snippets:', error)
-    }
-  },
-
-  setSelectedTranscriptionModel: async (modelId: string | null) => {
+  setSpeechToTextModel: async (modelId: string | null) => {
     try {
       const store = await getTauriStore()
       const newSettings = {
         ...get().settings,
         transcription: {
           ...get().settings.transcription,
-          selectedModelId: modelId,
+          speechToTextModelId: modelId,
         },
       }
       await store.set('settings', newSettings)
       await store.save()
       set({ settings: newSettings })
     } catch (error) {
-      console.error('Error setting selected transcription model:', error)
+      console.error('Error setting speech-to-text model:', error)
+    }
+  },
+
+  setPostProcessingModel: async (modelId: string | null) => {
+    try {
+      const store = await getTauriStore()
+      const newSettings = {
+        ...get().settings,
+        aiProcessing: {
+          ...get().settings.aiProcessing,
+          postProcessingModelId: modelId,
+        },
+      }
+      await store.set('settings', newSettings)
+      await store.save()
+      set({ settings: newSettings })
+    } catch (error) {
+      console.error('Error setting post-processing model:', error)
     }
   },
 }))

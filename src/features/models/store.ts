@@ -4,6 +4,7 @@ import { Store, load } from '@tauri-apps/plugin-store'
 import { toast } from 'sonner'
 import { create } from 'zustand'
 
+import { useSettingsStore } from '../settings/store'
 import {
   getLocalModelStatus,
   startLocalModel as startLocalModelCommand,
@@ -42,6 +43,12 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
       const store = await getTauriStore()
       const storedModels = await store.get<TranscriptionModel[]>('models')
 
+      // Get settings to determine selected models
+      const settings = useSettingsStore.getState().settings
+      const selectedSpeechToTextId = settings.transcription.speechToTextModelId
+      const selectedPostProcessingId =
+        settings.aiProcessing.postProcessingModelId
+
       // Get all models from Rust with latest status
       const defaultModels = await getDefaultModels()
 
@@ -49,9 +56,16 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
 
       if (!storedModels || storedModels.length === 0) {
         // First time - use defaults from Rust
-        modelsToUse = defaultModels
+        modelsToUse = defaultModels.map(model => ({
+          ...model,
+          isSelected:
+            (model.purpose === 'speech-to-text' &&
+              model.id === selectedSpeechToTextId) ||
+            (model.purpose === 'post-processing' &&
+              model.id === selectedPostProcessingId),
+        }))
       } else {
-        // Merge: use Rust data but preserve user settings (API keys, selection)
+        // Merge: use Rust data but preserve user settings (API keys)
         modelsToUse = await Promise.all(
           defaultModels.map(async rustModel => {
             const storedModel = storedModels.find(m => m.id === rustModel.id)
@@ -68,19 +82,23 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
               }
             }
 
+            // Determine selection based on settings
+            const isSelected =
+              (rustModel.purpose === 'speech-to-text' &&
+                rustModel.id === selectedSpeechToTextId) ||
+              (rustModel.purpose === 'post-processing' &&
+                rustModel.id === selectedPostProcessingId)
+
             if (storedModel) {
-              // Keep user settings and API key, but use Rust's download status
               return {
                 ...rustModel,
-                isSelected: storedModel.isSelected,
-                isEnabled: storedModel.isEnabled,
+                isSelected,
                 hasApiKey,
-                // Preserve encrypted API key from stored model
                 ...(storedModel.apiKey ? { apiKey: storedModel.apiKey } : {}),
               }
             }
 
-            return { ...rustModel, hasApiKey }
+            return { ...rustModel, hasApiKey, isSelected }
           })
         )
 
@@ -119,31 +137,6 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
       console.error('Error initializing models store:', error)
       set({ models: [], initialized: true })
     }
-  },
-
-  initActiveModel: async () => {
-    const store = await getTauriStore()
-    const models = get().models
-
-    // Find active model for each purpose
-    const activeSpeechToTextModel = models.find(
-      m => m.isSelected && m.isEnabled && m.purpose === 'speech-to-text'
-    )
-    const activePostProcessingModel = models.find(
-      m => m.isSelected && m.isEnabled && m.purpose === 'post-processing'
-    )
-
-    // Store both active models
-    if (activeSpeechToTextModel) {
-      await store.set('activeSpeechToTextModel', activeSpeechToTextModel)
-    }
-    if (activePostProcessingModel) {
-      await store.set('activePostProcessingModel', activePostProcessingModel)
-    }
-    await store.save()
-
-    // Return speech-to-text model for backward compatibility
-    return activeSpeechToTextModel
   },
 
   addModel: async model => {
@@ -304,6 +297,14 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
       await store.set('models', newModels)
       await store.save()
 
+      // Update settings store with the selected model
+      const settingsStore = useSettingsStore.getState()
+      if (newModel.purpose === 'speech-to-text') {
+        await settingsStore.setSpeechToTextModel(id)
+      } else if (newModel.purpose === 'post-processing') {
+        await settingsStore.setPostProcessingModel(id)
+      }
+
       // Notify other windows to reload
       await emit('models-changed')
     } catch (error) {
@@ -315,13 +316,6 @@ export const useModelsStore = create<ModelsState>((set, get) => ({
     // Auto-start new local model if it's downloaded
     if (newModel?.type === 'local' && newModel.isDownloaded && newModel.path) {
       await get().startLocalModel(id)
-    }
-  },
-
-  toggleEnabled: async id => {
-    const model = get().models.find(m => m.id === id)
-    if (model) {
-      await get().updateModel(id, { isEnabled: !model.isEnabled })
     }
   },
 

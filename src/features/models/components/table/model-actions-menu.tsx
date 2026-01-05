@@ -21,7 +21,6 @@ interface ModelActionsMenuProps {
   onRemoveApiKey: (id: string) => void
   onDownloadModel: (model: TranscriptionModel) => void
   onDeleteModel: (model: TranscriptionModel) => void
-  onToggleEnabled: (id: string) => void
   onStartModel?: (id: string) => Promise<void>
   onStopModel?: (id: string) => Promise<void>
 }
@@ -34,7 +33,6 @@ export function ModelActionsMenu({
   onRemoveApiKey,
   onDownloadModel,
   onDeleteModel,
-  onToggleEnabled,
   onStartModel,
   onStopModel,
 }: ModelActionsMenuProps) {
@@ -158,31 +156,15 @@ export function ModelActionsMenu({
                 </div>
               </DropdownMenuItem>
             )}
-            <DropdownMenuSeparator />
           </>
         )}
-
-        {/* GENERAL SECTION */}
-        <DropdownMenuItem
-          onClick={() => onToggleEnabled(model.id)}
-          className="rounded-sm"
-        >
-          <div className="flex flex-col gap-0.5">
-            <span className="font-medium text-sm">
-              {model.isEnabled ? 'Disable model' : 'Enable model'}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {model.isEnabled
-                ? 'Hide from model selection'
-                : 'Show in model selection'}
-            </span>
-          </div>
-        </DropdownMenuItem>
 
         {/* DANGER ZONE */}
         {hasDangerActions && (
           <>
-            <DropdownMenuSeparator />
+            {(hasLifecycleActions ||
+              hasConfigActions ||
+              hasSelectionActions) && <DropdownMenuSeparator />}
             {isLocalModel && model.isDownloaded && (
               <DropdownMenuItem
                 onClick={() => onDeleteModel(model)}

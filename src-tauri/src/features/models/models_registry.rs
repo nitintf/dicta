@@ -50,7 +50,6 @@ pub struct ModelDefinition {
     pub size: Option<String>,
     pub requires_api_key: bool,
     pub is_selected: bool,
-    pub is_enabled: bool,
     pub is_downloaded: Option<bool>,
     pub path: Option<String>,
     pub description: Option<String>,
@@ -156,7 +155,6 @@ pub async fn get_all_models(app: AppHandle) -> Result<Vec<ModelDefinition>, Stri
             size: None,
             requires_api_key: true,
             is_selected: false,
-            is_enabled: true,
             is_downloaded: None,
             path: None,
             description: Some(description.to_string()),
@@ -181,7 +179,6 @@ pub async fn get_all_models(app: AppHandle) -> Result<Vec<ModelDefinition>, Stri
             size: None,
             requires_api_key: true,
             is_selected: false,
-            is_enabled: true,
             is_downloaded: None,
             path: None,
             description: Some(description.to_string()),
@@ -219,7 +216,6 @@ pub async fn get_all_models(app: AppHandle) -> Result<Vec<ModelDefinition>, Stri
             requires_api_key: false,
             // Set whisper-tiny as default selected
             is_selected: *name == "tiny",
-            is_enabled: true,
             is_downloaded: Some(downloaded),
             path: if downloaded {
                 Some(model_path.to_string_lossy().to_string())

@@ -31,15 +31,15 @@ export function StepSidebar({
   canGoPrevious,
 }: StepSidebarProps) {
   return (
-    <div className="w-80 h-full px-2 py-2 flex flex-col bg-onboarding-sidebar-bg relative overflow-hidden">
+    <div className="w-80 h-full px-2 py-2 flex flex-col bg-sidebar relative overflow-hidden">
       {/* Decorative background illustration */}
       <div className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden">
         <MicrophoneIllustration className="text-onboarding-text absolute -right-8 top-0 w-full h-full" />
       </div>
 
       <div className="mb-16 pt-12 pl-2 relative z-10">
-        <h2 className="text-xl font-bold flex items-center gap-2.5 text-onboarding-text">
-          <DictaLogo size={28} className="text-onboarding-primary" />
+        <h2 className="text-xl font-bold flex items-center gap-2.5 text-foreground">
+          <DictaLogo size={28} className="text-primary" />
           Dicta
         </h2>
       </div>
@@ -65,11 +65,10 @@ export function StepSidebar({
                     <div
                       className={cn(
                         'flex size-10 shrink-0 items-center justify-center rounded-full border transition-all z-10 bg-white',
-                        isActive &&
-                          'border-onboarding-primary text-onboarding-primary',
+                        isActive && 'border-onboarding-primary text-primary',
                         isPast &&
                           !isActive &&
-                          'border-onboarding-primary text-onboarding-primary',
+                          'border-onboarding-primary text-primary',
                         isFuture && 'border-gray-300 text-gray-400'
                       )}
                     >

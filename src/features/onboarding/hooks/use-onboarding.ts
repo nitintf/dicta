@@ -96,6 +96,7 @@ export function useOnboarding() {
     progress,
 
     // Actions
+    setCurrentStep,
     nextStep,
     previousStep,
     goToStep,
