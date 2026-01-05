@@ -29,7 +29,9 @@ export function HelpPage() {
           <div>
             <InfoCard.Title>
               Get{' '}
-              <span className="text-primary italic">help when you need it</span>
+              <span className="text-primary italic sour-gummy">
+                help when you need it
+              </span>
             </InfoCard.Title>
             <InfoCard.Description>
               Access comprehensive guides, tutorials, and support resources. Our

@@ -38,9 +38,9 @@ export function StepSidebar({
       </div>
 
       <div className="mb-16 pt-12 pl-2 relative z-10">
-        <h2 className="text-xl font-bold flex items-center gap-2.5 text-foreground">
+        <h2 className="text-xl font-bold flex items-center gap-2.5 text-primary">
           <DictaLogo size={28} className="text-primary" />
-          Dicta
+          <span className="text-primary">Dicta</span>
         </h2>
       </div>
 

@@ -63,7 +63,9 @@ export function SnippetsPage() {
             <div>
               <InfoCard.Title>
                 Create{' '}
-                <span className="text-primary italic">reusable snippets</span>
+                <span className="text-primary italic sour-gummy">
+                  reusable snippets
+                </span>
               </InfoCard.Title>
               <InfoCard.Description>
                 Save frequently used phrases, responses, or text templates.

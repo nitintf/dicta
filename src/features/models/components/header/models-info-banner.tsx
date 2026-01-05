@@ -7,7 +7,9 @@ export function ModelsInfoBanner() {
         <div>
           <InfoCard.Title>
             Manage{' '}
-            <span className="text-primary italic">transcription models</span>
+            <span className="text-primary italic sour-gummy">
+              transcription models
+            </span>
           </InfoCard.Title>
           <InfoCard.Description>
             Choose from cloud AI providers, run models locally, or use Apple's

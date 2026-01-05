@@ -64,7 +64,9 @@ export function VocabularyPage() {
             <div>
               <InfoCard.Title>
                 Build your{' '}
-                <span className="text-primary italic">custom vocabulary</span>
+                <span className="text-primary italic sour-gummy">
+                  custom vocabulary
+                </span>
               </InfoCard.Title>
               <InfoCard.Description>
                 Add names, technical terms, or specialized words to improve
@@ -82,7 +84,7 @@ export function VocabularyPage() {
         </InfoCard>
 
         {/* Content */}
-        <div className="max-w-4xl">
+        <div>
           <h2 className="text-sm font-medium text-muted-foreground mb-4 uppercase tracking-wide">
             Your Words
           </h2>

@@ -7,7 +7,7 @@ export function WelcomeBanner() {
         <div>
           <InfoCard.Title>
             Transform your voice into{' '}
-            <span className="text-primary italic">perfect text</span>
+            <span className="text-primary italic sour-gummy">perfect text</span>
           </InfoCard.Title>
           <InfoCard.Description>
             Dicta uses advanced AI to transcribe your voice with incredible

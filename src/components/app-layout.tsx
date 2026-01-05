@@ -28,7 +28,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
         <AppSidebar />
         <SidebarInset className="flex-1 overflow-auto">
-          <div className="h-full min-w-5xl max-w-5xl mx-auto">{children}</div>
+          <div className="h-full min-w-4xl max-w-4xl mx-auto">{children}</div>
         </SidebarInset>
       </div>
     </SidebarProvider>

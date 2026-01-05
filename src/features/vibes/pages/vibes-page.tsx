@@ -29,7 +29,7 @@ export function VibesPage() {
         </div>
       </div>
 
-      <div className="max-w-4xl pb-16">
+      <div className="pb-16">
         <VibesPanel />
       </div>
     </div>

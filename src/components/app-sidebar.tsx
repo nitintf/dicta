@@ -68,9 +68,9 @@ export function AppSidebar() {
       <Sidebar variant="sidebar" collapsible="offcanvas">
         <SidebarContent className="pt-12">
           <SidebarHeader>
-            <h2 className="text-xl font-bold flex items-center gap-2.5 text-onboarding-text">
-              <DictaLogo size={28} className="text-onboarding-primary" />
-              <span className="text-foreground">Dicta</span>
+            <h2 className="text-xl font-bold flex items-center gap-2.5 text-primary">
+              <DictaLogo size={28} className="text-primary" />
+              <span className="text-primary sour-gummy">Dicta</span>
             </h2>
           </SidebarHeader>
           <SidebarGroup>
