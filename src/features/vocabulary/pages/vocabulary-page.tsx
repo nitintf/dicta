@@ -133,7 +133,7 @@ export function VocabularyPage() {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleDelete(word.id)}
-                          className="h-8 w-8 p-0"
+                          className="h-8 w-8 p-0 text-destructive hover:text-destructive"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

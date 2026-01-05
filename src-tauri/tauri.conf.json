@@ -21,6 +21,7 @@
         "minWidth": 1000,
         "minHeight": 600,
         "resizable": true,
+        "visible": false,
         "titleBarStyle": "Overlay",
         "url": "/",
         "decorations": true,

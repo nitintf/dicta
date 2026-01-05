@@ -2,6 +2,7 @@ import { Trash2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { CopyButton } from '@/components/ui/copy-button'
+import { cn } from '@/lib/cn'
 
 import { formatTime, formatDuration } from '../utils'
 
@@ -10,14 +11,23 @@ import type { Transcription } from '@/features/transcriptions'
 interface TranscriptionCardProps {
   transcription: Transcription
   onDelete: (id: string) => void
+  isLast: boolean
 }
 
 export function TranscriptionCard({
   transcription,
   onDelete,
+  isLast,
 }: TranscriptionCardProps) {
   return (
-    <div className="group p-4 rounded-lg border bg-transparent transition-colors">
+    <div
+      className={cn(
+        'group hover:bg-muted/30 p-4 border-b border-border transition-colors',
+        {
+          'border-b-0': isLast,
+        }
+      )}
+    >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <p className="text-sm text-foreground line-clamp-2 mb-2">

@@ -80,7 +80,6 @@ const CATEGORY_CONFIG: Record<
   },
 }
 
-// Get preview component based on category
 const getPreviewComponent = (category: VibeCategory, text: string) => {
   const previews = {
     personal: <MessengerPreview text={text} />,
@@ -112,7 +111,6 @@ function CategoryInfo({ category }: { category: VibeCategory }) {
   )
 }
 
-// Add new vibe button
 function AddVibeButton({ onClick }: { onClick: () => void }) {
   return (
     <button
@@ -200,7 +198,7 @@ export function VibesPanel() {
             <TabsContent key={category} value={category} className="space-y-6">
               <CategoryInfo category={category} />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-8">
                 {categoryVibes.map(vibe => (
                   <VibeCard
                     key={vibe.id}

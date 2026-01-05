@@ -103,7 +103,6 @@ export function SnippetsPage() {
               </p>
             </div>
           ) : (
-            /* Snippets list */
             <div className="rounded-xl border border-border bg-background overflow-hidden">
               {snippets.map((snippet, index) => (
                 <div
@@ -120,7 +119,7 @@ export function SnippetsPage() {
                         {snippet.snippet}
                       </h3>
                       <span className="text-xs text-muted-foreground">→</span>
-                      <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap wrap-break-words">
                         {snippet.expansion}
                       </p>
                     </div>
@@ -138,7 +137,7 @@ export function SnippetsPage() {
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDelete(snippet.id)}
-                        className="h-8 w-8 p-0"
+                        className="h-8 w-8 p-0 text-destructive hover:text-destructive"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

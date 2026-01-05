@@ -17,12 +17,13 @@ export function TranscriptionGroup({
         <h3 className="text-sm font-semibold text-foreground">{group.label}</h3>
       </div>
 
-      <div className="space-y-2 mb-6">
-        {group.transcriptions.map(transcription => (
+      <div className="mb-6 rounded-xl border border-border bg-background overflow-hidden">
+        {group.transcriptions.map((transcription, index) => (
           <TranscriptionCard
             key={transcription.id}
             transcription={transcription}
             onDelete={onDeleteTranscription}
+            isLast={index === group.transcriptions.length - 1}
           />
         ))}
       </div>

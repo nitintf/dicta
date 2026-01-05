@@ -49,10 +49,8 @@ pub fn run() {
     #[cfg(debug_assertions)] // only enable instrumentation in development builds
     let devtools = tauri_plugin_devtools::init();
 
-    // Initialize LocalModelManager state for persistent model loading
     let local_model_manager = Arc::new(Mutex::new(LocalModelManager::new()));
 
-    // Initialize ShortcutManager for managing global shortcuts
     let shortcut_manager = ShortcutManager::new();
 
     let mut builder = tauri::Builder::default()
