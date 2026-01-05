@@ -16,7 +16,7 @@ use features::models::{
     auto_start_selected_models, delete_local_model, download_local_model, get_all_models,
     get_local_model_status, start_local_model, stop_local_model, LocalModelManager,
 };
-use features::recordings::{delete_recording, get_all_transcriptions};
+use features::recordings::{delete_recording, get_all_transcriptions, get_recording_audio_path};
 use features::security::{get_api_key, has_api_key, remove_api_key, store_api_key};
 use features::shortcuts::{
     disable_global_shortcuts, enable_global_shortcuts, update_paste_shortcut,
@@ -201,6 +201,7 @@ pub fn run() {
             // Recordings management
             get_all_transcriptions,
             delete_recording,
+            get_recording_audio_path,
             // System preferences
             set_show_in_dock,
             // Data export/import

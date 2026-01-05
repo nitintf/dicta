@@ -166,3 +166,23 @@ pub async fn delete_recording(app: AppHandle, timestamp: i64) -> Result<(), Stri
 
     Ok(())
 }
+
+/// Get the audio file as base64 encoded string for a recording by timestamp
+#[command]
+pub async fn get_recording_audio_path(app: AppHandle, timestamp: i64) -> Result<String, String> {
+    use base64::Engine;
+
+    let recordings_dir = get_recordings_dir(&app)?;
+    let audio_path = recordings_dir.join(timestamp.to_string()).join("audio.wav");
+
+    if !audio_path.exists() {
+        return Err("Audio file not found".to_string());
+    }
+
+    let audio_bytes =
+        fs::read(&audio_path).map_err(|e| format!("Failed to read audio file: {}", e))?;
+
+    let base64_string = base64::engine::general_purpose::STANDARD.encode(&audio_bytes);
+
+    Ok(base64_string)
+}
