@@ -37,15 +37,24 @@ pub fn register_voice_input_shortcut(app: &App) -> Result<()> {
         Code::KeyV,
     ));
 
+    // ESC shortcut for canceling recording
+    let escape_shortcut = Shortcut::new(None, Code::Escape);
+
     app.handle().plugin(
         tauri_plugin_global_shortcut::Builder::new()
-            .with_shortcuts([voice_shortcut.clone(), paste_shortcut.clone()])
+            .with_shortcuts([
+                voice_shortcut.clone(),
+                paste_shortcut.clone(),
+                escape_shortcut.clone(),
+            ])
             .expect("Failed to register shortcut")
             .with_handler(move |app, shortcut, event| {
                 if shortcut.id() == voice_shortcut.id() {
                     handle_voice_input_shortcut(app, shortcut, event);
                 } else if shortcut.id() == paste_shortcut.id() {
                     handle_paste_shortcut(app, shortcut, event);
+                } else if shortcut.id() == escape_shortcut.id() {
+                    handle_escape_shortcut(app, shortcut, event);
                 }
             })
             .build(),
@@ -90,6 +99,17 @@ fn handle_voice_input_shortcut(app: &tauri::AppHandle, shortcut: &Shortcut, even
             let handle = app.app_handle();
             handle.emit("show_voice_input", ()).unwrap();
             panel.show();
+        }
+    }
+}
+
+/// Handles the escape shortcut press - cancels recording if voice input panel is visible
+fn handle_escape_shortcut(app: &tauri::AppHandle, shortcut: &Shortcut, event: ShortcutEvent) {
+    if event.state == ShortcutState::Pressed && event.id == shortcut.id() {
+        let panel = app.get_webview_panel(SPOTLIGHT_LABEL).unwrap();
+        if panel.is_visible() {
+            let handle = app.app_handle();
+            handle.emit("cancel_recording", ()).unwrap();
         }
     }
 }

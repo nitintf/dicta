@@ -45,6 +45,16 @@ export const VoiceInput = forwardRef<VoiceInputHandle>((_props, ref) => {
     [isRecording, stopRecording]
   )
 
+  useTauriEvent<void>(
+    'cancel_recording',
+    () => {
+      if (isRecording) {
+        cancelRecording()
+      }
+    },
+    [isRecording, cancelRecording]
+  )
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {

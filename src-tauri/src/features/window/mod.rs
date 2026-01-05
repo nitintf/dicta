@@ -91,13 +91,15 @@ impl WebviewWindowExt for WebviewWindow {
                 let size = NSSize::new(240.0, 40.0);
                 let _: () = msg_send![handle, setContentSize: size];
 
-                // Position at bottom center of screen
+                // Position at bottom center of screen, just above the dock
                 let screen: cocoa_id = msg_send![class!(NSScreen), mainScreen];
                 let screen_frame: tauri_nspanel::cocoa::foundation::NSRect =
                     msg_send![screen, visibleFrame];
 
                 let x = screen_frame.origin.x + (screen_frame.size.width - size.width) / 2.0;
-                let y = screen_frame.origin.y + 80.0; // 80 pixels from bottom
+                // visibleFrame already excludes the dock, so origin.y is just above the dock
+                // Add a small margin (16px) for visual breathing room
+                let y = screen_frame.origin.y + 16.0;
 
                 let origin = tauri_nspanel::cocoa::foundation::NSPoint { x, y };
                 let frame = tauri_nspanel::cocoa::foundation::NSRect { origin, size };
