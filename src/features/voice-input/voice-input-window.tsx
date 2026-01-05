@@ -1,23 +1,21 @@
-import { StrictMode, useState } from 'react'
+import { StrictMode, useRef } from 'react'
 import ReactDOM from 'react-dom/client'
 
-import { VoiceInput } from './components/voice-input'
+import { VoiceInput, type VoiceInputHandle } from './components/voice-input'
 import { useTauriEvent } from '../../hooks/use-tauri-event'
 
 import '../../index.css'
 
 function VoiceInputWindowApp() {
-  // Use a session key that changes every time the window is shown
-  // This forces React to completely unmount and remount the component
-  const [sessionKey, setSessionKey] = useState(0)
+  const voiceInputRef = useRef<VoiceInputHandle>(null)
 
   useTauriEvent<void>('show_voice_input', () => {
-    setSessionKey(prev => prev + 1)
+    voiceInputRef.current?.start()
   })
 
   return (
     <StrictMode>
-      <VoiceInput key={sessionKey} />
+      <VoiceInput ref={voiceInputRef} />
     </StrictMode>
   )
 }

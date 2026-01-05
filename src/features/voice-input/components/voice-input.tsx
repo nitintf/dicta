@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { forwardRef, useEffect, useImperativeHandle } from 'react'
 
 import { LiveWaveform } from '@/components/ui/live-waveform'
 
@@ -8,15 +8,32 @@ import { VoiceInputContainer } from './voice-input-container'
 import { useTauriEvent } from '../../../hooks/use-tauri-event'
 import { useVoiceRecording } from '../hooks/use-voice-recording'
 
-export function VoiceInput() {
+export interface VoiceInputHandle {
+  start: () => Promise<void>
+  stop: () => Promise<void>
+  cancel: () => Promise<void>
+}
+
+export const VoiceInput = forwardRef<VoiceInputHandle>((_props, ref) => {
   const {
     isRecording,
     isProcessing,
     stream,
     feedbackMessage,
+    startRecording,
     stopRecording,
     cancelRecording,
   } = useVoiceRecording()
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      start: startRecording,
+      stop: stopRecording,
+      cancel: cancelRecording,
+    }),
+    [startRecording, stopRecording, cancelRecording]
+  )
 
   useTauriEvent<void>(
     'stop_recording',
@@ -104,7 +121,7 @@ export function VoiceInput() {
       />
     </VoiceInputContainer>
   )
-}
+})
 
 const TranscriberProcessing = () => {
   return (

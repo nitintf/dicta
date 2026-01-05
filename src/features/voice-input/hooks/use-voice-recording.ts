@@ -160,14 +160,6 @@ export function useVoiceRecording() {
   }, [])
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      startRecording()
-    }, 100)
-
-    return () => clearTimeout(timer)
-  }, [startRecording])
-
-  useEffect(() => {
     return () => {
       cleanupMediaStream(streamRef.current)
       streamRef.current = null
