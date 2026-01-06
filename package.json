@@ -14,6 +14,7 @@
     "format:rust": "cd src-tauri && cargo fmt --all",
     "format:rust:check": "cd src-tauri && cargo fmt --all -- --check",
     "format:all": "pnpm format && pnpm format:rust",
+    "generate:types": "cd src-tauri && cargo test",
     "prepare": "husky"
   },
   "lint-staged": {

@@ -69,6 +69,32 @@ NEW_VERSION="$MAJOR.$MINOR.$PATCH"
 echo "New version: $NEW_VERSION"
 echo ""
 
+# Run tests/lint if available (optional)
+if command -v pnpm &> /dev/null; then
+    echo "Running linter..."
+    pnpm lint || echo "⚠ Linter found issues, but continuing..."
+    echo ""
+fi
+
+# Build the application
+echo "Building application..."
+if command -v make &> /dev/null; then
+    make build
+else
+    echo "⚠ Make not found, running build directly..."
+    pnpm tauri build
+fi
+
+if [ $? -ne 0 ]; then
+    echo "Error: Build failed. Aborting release."
+    exit 1
+fi
+
+echo ""
+echo "✓ Build successful"
+echo ""
+
+
 # Update version in package.json
 if [[ "$OSTYPE" == "darwin"* ]]; then
     # macOS
@@ -104,31 +130,6 @@ if [ -f src-tauri/tauri.conf.json ]; then
 fi
 
 echo "✓ Updated version to $NEW_VERSION in all files"
-echo ""
-
-# Run tests/lint if available (optional)
-if command -v pnpm &> /dev/null; then
-    echo "Running linter..."
-    pnpm lint || echo "⚠ Linter found issues, but continuing..."
-    echo ""
-fi
-
-# Build the application
-echo "Building application..."
-if command -v make &> /dev/null; then
-    make build
-else
-    echo "⚠ Make not found, running build directly..."
-    pnpm tauri build
-fi
-
-if [ $? -ne 0 ]; then
-    echo "Error: Build failed. Aborting release."
-    exit 1
-fi
-
-echo ""
-echo "✓ Build successful"
 echo ""
 
 # Create git tag

@@ -7,6 +7,7 @@ use tauri_plugin_store::StoreExt;
 
 mod features;
 mod menu;
+mod types;
 mod utils;
 
 use features::ai_processing::post_process_transcript;
