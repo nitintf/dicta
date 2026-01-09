@@ -1,7 +1,8 @@
 import path from 'node:path'
-import { defineConfig } from 'vite'
+
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite'
 
 const host = process.env.TAURI_DEV_HOST
 
@@ -20,6 +21,7 @@ export default defineConfig(async () => ({
       input: {
         main: path.resolve(__dirname, 'index.html'),
         'voice-input': path.resolve(__dirname, 'voice-input.html'),
+        toast: path.resolve(__dirname, 'toast.html'),
       },
     },
   },

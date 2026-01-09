@@ -14,7 +14,7 @@ export default function Hero() {
 
         {/* CTA Buttons */}
         <div className="flex flex-col sm:flex-row gap-3 items-center justify-center pt-2">
-          <button className="px-6 py-3 bg-foreground text-background rounded-xl font-semibold text-sm hover:bg-foreground/90 transition-all hover:scale-105">
+          <button className="px-6 py-3 bg-foreground text-background rounded-xl font-semibold text-sm hover:bg-foreground/90 transition-all">
             Download for Mac
           </button>
           <button className="px-6 py-3 bg-transparent text-foreground rounded-xl font-semibold text-sm border border-border hover:border-foreground/50 transition-all">

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-// Settings Schema
+// Settings Schema (for validation - types are generated from Rust)
 export const settingsSchema = z.object({
   onboarding: z.object({
     completed: z.boolean(),
@@ -13,6 +13,7 @@ export const settingsSchema = z.object({
     language: z.string(),
     autoPaste: z.boolean(),
     autoCopyToClipboard: z.boolean(),
+    speechToTextModelId: z.string().nullable(),
   }),
   shortcuts: z.object({
     pasteLastTranscript: z.string(),
@@ -25,6 +26,10 @@ export const settingsSchema = z.object({
   privacy: z.object({
     analytics: z.boolean(),
     errorLogging: z.boolean(),
+  }),
+  aiProcessing: z.object({
+    enabled: z.boolean(),
+    postProcessingModelId: z.string().nullable(),
   }),
 })
 

@@ -135,12 +135,19 @@ export function createControllableRecorder(stream: MediaStream): {
 /**
  * Play audio feedback for recording actions
  */
-export function playAudioFeedback(audioFile: 'main' | 'cancel'): void {
+export async function playAudioFeedback(
+  audioFile: 'main' | 'cancel'
+): Promise<void> {
   try {
+    // const { invoke } = await import('@tauri-apps/api/core')
+    // invoke('trigger_haptic_feedback').catch(error => {
+    //   console.error('Failed to trigger haptic feedback:', error)
+    // })
+
     const audio = new Audio(
       `/${audioFile === 'main' ? 'main.mp3' : 'cancel.wav'}`
     )
-    audio.volume = 0.03 // Set volume to 3% for subtlety
+    audio.volume = 0.03
     audio.play().catch(error => {
       console.error('Failed to play audio feedback:', error)
     })

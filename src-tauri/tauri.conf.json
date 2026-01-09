@@ -31,19 +31,6 @@
           "x": 18,
           "y": 23
         }
-      },
-      {
-        "label": "voice-input",
-        "title": "Voice Input",
-        "url": "voice-input.html",
-        "width": 240,
-        "height": 40,
-        "visible": false,
-        "hiddenTitle": true,
-        "decorations": false,
-        "transparent": true,
-        "alwaysOnTop": true,
-        "acceptFirstMouse": true
       }
     ],
     "security": {
@@ -60,7 +47,7 @@
       "pubkey": "your-public-key-here"
     },
     "webview": {
-      "windows": ["main", "voice-input"],
+      "windows": ["main"],
       "permissions": ["allow-popups", "allow-modals"]
     }
   },

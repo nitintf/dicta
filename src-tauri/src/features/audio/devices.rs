@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
 use tauri::command;
+use ts_rs::TS;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/features/voice-input/types/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct AudioDevice {
     pub device_id: String,

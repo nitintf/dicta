@@ -1,10 +1,11 @@
-use tauri::{Emitter, Listener, Manager};
+use tauri::Manager;
 
 #[cfg(target_os = "macos")]
 use tauri::ActivationPolicy;
 
 use tauri_plugin_store::StoreExt;
 
+mod commands;
 mod features;
 mod menu;
 mod types;
@@ -24,9 +25,10 @@ use features::shortcuts::{
     update_voice_input_shortcut, ShortcutManager,
 };
 use features::transcription::{get_last_transcript, paste_last_transcript, transcribe_and_process};
-use features::window::WebviewWindowExt;
+use utils::logger::{log_complete, log_failed, log_lifecycle_event, log_start, log_with_context};
 
 use std::sync::Arc;
+use std::time::Instant;
 use tokio::sync::Mutex;
 
 pub const SPOTLIGHT_LABEL: &str = "voice-input";
@@ -45,9 +47,51 @@ fn set_show_in_dock(app: tauri::AppHandle, show: bool) -> Result<(), String> {
     Ok(())
 }
 
+/// Setup logging with rotation and filtering
+fn setup_logging() -> tauri_plugin_log::Builder {
+    use chrono::Local;
+    use tauri_plugin_log::{Target, TargetKind};
+
+    let today = Local::now().format("%Y-%m-%d").to_string();
+
+    tauri_plugin_log::Builder::default()
+        .targets([
+            Target::new(TargetKind::Stdout).filter(|metadata| {
+                // Filter out noisy logs
+                let target = metadata.target();
+                !target.contains("whisper_rs")
+                    && !target.contains("audio::level_meter")
+                    && !target.contains("cpal")
+                    && !target.contains("rubato")
+                    && !target.contains("hound")
+            }),
+            Target::new(TargetKind::LogDir {
+                file_name: Some(format!("voicetypr-{}", today)),
+            })
+            .filter(|metadata| {
+                // Filter out noisy logs from file as well
+                let target = metadata.target();
+                !target.contains("whisper_rs")
+                    && !target.contains("audio::level_meter")
+                    && !target.contains("cpal")
+                    && !target.contains("rubato")
+                    && !target.contains("hound")
+            }),
+        ])
+        .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepAll)
+        .max_file_size(10_000_000) // 10MB per file
+        .level(if cfg!(debug_assertions) {
+            log::LevelFilter::Debug
+        } else {
+            log::LevelFilter::Info
+        })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    #[cfg(debug_assertions)] // only enable instrumentation in development builds
+    let app_version = env!("CARGO_PKG_VERSION");
+
+    #[cfg(debug_assertions)]
     let devtools = tauri_plugin_devtools::init();
 
     let local_model_manager = Arc::new(Mutex::new(LocalModelManager::new()));
@@ -57,22 +101,29 @@ pub fn run() {
     let mut builder = tauri::Builder::default()
         .manage(local_model_manager)
         .manage(shortcut_manager)
+        // .plugin(setup_logging().build())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_shell::init())
-        .plugin(
-            tauri_plugin_stronghold::Builder::new(|_pass| {
-                // Simple password derivation for now
-                vec![0u8; 32]
-            })
-            .build(),
-        )
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_store::Builder::default().build())
-        .plugin(tauri_plugin_macos_permissions::init())
         .plugin(tauri_plugin_autostart::Builder::new().build())
-        .plugin(tauri_plugin_mic_recorder::init());
+        .plugin(tauri_plugin_mic_recorder::init())
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            // When a second instance is launched, bring the existing window to focus
+            if let Some(win) = app.get_webview_window("main") {
+                let _ = win.show();
+                let _ = win.set_focus();
+            }
+        }));
+
+    #[cfg(target_os = "macos")]
+    {
+        builder = builder
+            .plugin(tauri_nspanel::init())
+            .plugin(tauri_plugin_macos_permissions::init());
+    }
 
     #[cfg(debug_assertions)]
     {
@@ -80,12 +131,61 @@ pub fn run() {
     }
 
     #[cfg(target_os = "macos")]
-    {
-        builder = builder.plugin(tauri_nspanel::init());
-    }
-
-    #[cfg(target_os = "macos")]
     let setup_fn = move |app: &mut tauri::App| {
+        // Setup panic handler
+        log_start("PANIC_HANDLER_SETUP");
+        log_with_context(
+            log::Level::Debug,
+            "Setting up panic handler",
+            &[("component", "panic_handler")],
+        );
+
+        std::panic::set_hook(Box::new(|panic_info| {
+            let location = panic_info
+                .location()
+                .map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column()))
+                .unwrap_or_else(|| "unknown location".to_string());
+
+            let message = if let Some(s) = panic_info.payload().downcast_ref::<&str>() {
+                s.to_string()
+            } else if let Some(s) = panic_info.payload().downcast_ref::<String>() {
+                s.clone()
+            } else {
+                "Unknown panic payload".to_string()
+            };
+
+            log::error!("💥 CRITICAL PANIC at {}: {}", location, message);
+            log_failed("PANIC", "Application panic occurred");
+            log_with_context(
+                log::Level::Error,
+                "Panic details",
+                &[
+                    ("panic_location", &location),
+                    ("panic_message", &message),
+                    ("severity", "critical"),
+                ],
+            );
+            eprintln!("Application panic at {}: {}", location, message);
+
+            // Try to save panic info to a crash file for debugging
+            if let Ok(home_dir) = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")) {
+                let crash_file = std::path::Path::new(&home_dir).join(".dicta_crash.log");
+                let _ = std::fs::write(
+                    &crash_file,
+                    format!(
+                        "Panic at {}: {}\nFull info: {:?}\nTime: {:?}",
+                        location,
+                        message,
+                        panic_info,
+                        chrono::Local::now()
+                    ),
+                );
+            }
+        }));
+
+        log::info!("✅ Panic handler configured");
+        log_lifecycle_event("APPLICATION_START", Some(app_version), None);
+
         let store = app
             .store("settings")
             .map_err(|e| format!("Failed to get settings store: {}", e))?;
@@ -115,55 +215,66 @@ pub fn run() {
 
         let handle = app.app_handle();
 
-        // Get local model manager for cleanup on quit
         let model_manager_state = app.state::<Arc<Mutex<LocalModelManager>>>();
         let model_manager_cleanup = model_manager_state.inner().clone();
 
-        // Setup system tray
         menu::setup_tray(app, model_manager_cleanup.clone())?;
-
-        // Setup menu bar
         menu::setup_menu_bar(app)?;
 
-        // Prevent app from quitting when main window is closed
         if let Some(window) = app.get_webview_window("main") {
             let window_clone = window.clone();
             window.on_window_event(move |event| {
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                    // Prevent default close behavior
                     api.prevent_close();
-                    // Hide the window instead
                     let _ = window_clone.hide();
                 }
             });
         }
 
-        // Initialize the store
-        let window = handle.get_webview_window(SPOTLIGHT_LABEL).unwrap();
+        features::window::setup_pill_window(&handle)?;
+        features::window::setup_toast_window(&handle)?;
 
-        // Convert the window to a spotlight panel
-        let _panel = window.to_spotlight_panel()?;
-
-        let cloned_handle = handle.clone();
-
-        // Listen for panel becoming key (gaining focus)
-        handle.listen(
-            format!("{}_panel_did_become_key", SPOTLIGHT_LABEL),
-            move |_| {
-                // Emit an event that the frontend can listen for
-                cloned_handle.emit("voice-input-focused", ()).unwrap();
-            },
-        );
-
-        // Register global shortcuts
         features::shortcuts::register_voice_input_shortcut(app)?;
 
-        // Auto-start selected local models if downloaded
         let app_handle = app.app_handle().clone();
         let model_manager_clone = model_manager_cleanup.clone();
         tauri::async_runtime::spawn(async move {
             if let Err(e) = auto_start_selected_models(&app_handle, model_manager_clone).await {
                 eprintln!("Failed to auto-start models on startup: {}", e);
+            }
+        });
+
+        log_start("LOG_CLEANUP");
+        log_with_context(
+            log::Level::Debug,
+            "Cleaning up old logs",
+            &[("retention_days", "30")],
+        );
+
+        let app_handle_cleanup = app.app_handle().clone();
+        tauri::async_runtime::spawn(async move {
+            let cleanup_start = Instant::now();
+            match commands::clear_old_logs(app_handle_cleanup, 30).await {
+                Ok(deleted) => {
+                    log_complete("LOG_CLEANUP", cleanup_start.elapsed().as_millis() as u64);
+                    log_with_context(
+                        log::Level::Debug,
+                        "Log cleanup complete",
+                        &[("files_deleted", &deleted.to_string())],
+                    );
+                    if deleted > 0 {
+                        log::info!("🧹 Cleaned up {} old log files", deleted);
+                    }
+                }
+                Err(e) => {
+                    log_failed("LOG_CLEANUP", &e);
+                    log_with_context(
+                        log::Level::Debug,
+                        "Log cleanup failed",
+                        &[("retention_days", "30")],
+                    );
+                    log::warn!("Failed to clean up old logs: {}", e);
+                }
             }
         });
 
@@ -209,6 +320,8 @@ pub fn run() {
             export_all_data,
             import_all_data,
             import_from_json,
+            // Haptic feedback
+            utils::haptic::trigger_haptic_feedback,
         ])
         .setup(setup_fn)
         .build(tauri::generate_context!())

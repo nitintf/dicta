@@ -1,38 +1,16 @@
-import { z } from 'zod'
+// Import and re-export generated types from Rust
+import type { Settings } from './types/generated'
 
-export const settingsSchema = z.object({
-  onboarding: z.object({
-    completed: z.boolean(),
-  }),
-  voiceInput: z.object({
-    shortcut: z.string(),
-    microphoneDeviceId: z.string().nullable(),
-  }),
-  transcription: z.object({
-    language: z.string(),
-    autoPaste: z.boolean(),
-    autoCopyToClipboard: z.boolean(),
-    speechToTextModelId: z.string().nullable(),
-  }),
-  shortcuts: z.object({
-    pasteLastTranscript: z.string(),
-    globalShortcutsEnabled: z.boolean(),
-  }),
-  system: z.object({
-    showInDock: z.boolean(),
-    saveAudioRecordings: z.boolean(),
-  }),
-  privacy: z.object({
-    analytics: z.boolean(),
-    errorLogging: z.boolean(),
-  }),
-  aiProcessing: z.object({
-    enabled: z.boolean(),
-    postProcessingModelId: z.string().nullable(),
-  }),
-})
-
-export type Settings = z.infer<typeof settingsSchema>
+export type {
+  Settings,
+  OnboardingSettings,
+  VoiceInputSettings,
+  TranscriptionSettings,
+  ShortcutsSettings,
+  SystemSettings,
+  PrivacySettings,
+  AiProcessingSettings,
+} from './types/generated'
 
 export const defaultSettings: Settings = {
   onboarding: {

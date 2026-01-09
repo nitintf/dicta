@@ -1,5 +1,5 @@
 // This file re-exports all generated types from ts-rs
-// Run `cargo test` in src-tauri to regenerate these types
+// Run `cargo test --lib types::settings` to regenerate these types
 
 export * from './Settings'
 export * from './OnboardingSettings'

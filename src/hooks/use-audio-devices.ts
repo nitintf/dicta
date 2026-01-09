@@ -1,12 +1,9 @@
 import { invoke } from '@tauri-apps/api/core'
 import { useCallback, useEffect, useState } from 'react'
 
-export interface AudioDevice {
-  deviceId: string
-  label: string
-  isDefault: boolean
-  isRecommended: boolean
-}
+import type { AudioDevice } from '@/features/voice-input/types/generated'
+
+export type { AudioDevice }
 
 export interface UseAudioDevicesReturn {
   devices: AudioDevice[]

@@ -1,21 +1,25 @@
 use serde::{Deserialize, Serialize};
 use tauri::{command, AppHandle, Manager};
+use ts_rs::TS;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/features/models/types/generated/")]
 #[serde(rename_all = "lowercase")]
 pub enum ModelType {
     Cloud,
     Local,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/features/models/types/generated/")]
 #[serde(rename_all = "kebab-case")]
 pub enum ModelPurpose {
     SpeechToText,
     PostProcessing,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/features/models/types/generated/")]
 pub enum ModelProvider {
     #[serde(rename = "openai")]
     OpenAI,
@@ -35,7 +39,8 @@ pub enum ModelProvider {
     LMStudio,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../src/features/models/types/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct ModelDefinition {
     pub id: String,

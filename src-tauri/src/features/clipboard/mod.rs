@@ -6,7 +6,13 @@ use std::process::Command;
 #[cfg(target_os = "macos")]
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+use ts_rs::TS;
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(
+    export,
+    export_to = "../../src/features/transcriptions/types/generated/"
+)]
 #[serde(rename_all = "camelCase")]
 pub struct FocusedApp {
     pub name: String,

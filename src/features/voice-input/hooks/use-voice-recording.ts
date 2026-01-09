@@ -9,21 +9,13 @@ import {
   cleanupMediaStream,
   createAudioContext,
   createControllableRecorder,
-  delay,
   hideVoiceInputWindow,
   initializeMediaStream,
   playAudioFeedback,
   processTranscription,
-  showFeedbackAndHide,
+  showToast,
   stopMediaRecorder,
-  type FeedbackMessage,
 } from '@/features/voice-input/utils'
-
-const FEEDBACK_DURATION = {
-  COMPLETED: 500,
-  ERROR: 500,
-  CANCELLED: 750,
-} as const
 
 export function useVoiceRecording() {
   const { settings } = useSettingsStore()
@@ -35,7 +27,6 @@ export function useVoiceRecording() {
   const [isRecording, setIsRecording] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [stream, setStream] = useState<MediaStream | null>(null)
-  const [feedbackMessage, setFeedbackMessage] = useState<FeedbackMessage>(null)
 
   /**
    * Starts recording by initializing media stream and recorder
@@ -62,6 +53,28 @@ export function useVoiceRecording() {
       console.log('Recording started')
     } catch (error) {
       console.error('Failed to start recording:', error)
+
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      let userMessage = 'Failed to start recording'
+
+      if (
+        errorMsg.includes('Permission denied') ||
+        errorMsg.includes('NotAllowedError')
+      ) {
+        userMessage = 'Microphone access denied. Please enable it in Settings.'
+      } else if (
+        errorMsg.includes('NotFoundError') ||
+        errorMsg.includes('not found')
+      ) {
+        userMessage = 'Microphone not found. Please check your device.'
+      } else if (errorMsg.includes('NotReadableError')) {
+        userMessage = 'Microphone in use by another app.'
+      }
+
+      // Small delay before hiding to allow any UI updates to render
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      await showToast(userMessage, 'error')
       await emit('hide_voice_input')
     }
   }, [settings.voiceInput.microphoneDeviceId])
@@ -73,9 +86,11 @@ export function useVoiceRecording() {
     try {
       setIsRecording(false)
       setIsProcessing(true)
-      setFeedbackMessage('processing')
 
       playAudioFeedback('main')
+
+      // Wait for audio to play before hiding
+      await new Promise(resolve => setTimeout(resolve, 200))
 
       const recorder = mediaRecorderRef.current
       let audioBlob: Blob | null = null
@@ -96,17 +111,58 @@ export function useVoiceRecording() {
             duration,
           })
 
-          // Only show completed message if transcription was actually saved
-          // (result will be null/undefined if audio was silent)
           if (result !== null && result !== undefined) {
-            setFeedbackMessage('completed')
-            await delay(FEEDBACK_DURATION.COMPLETED)
+            // Add a small delay before hiding window for better UX
+            await new Promise(resolve => setTimeout(resolve, 300))
+            await hideVoiceInputWindow()
+            await showToast('Transcription saved successfully', 'success')
+          } else {
+            // Silent audio or empty transcription
+            await new Promise(resolve => setTimeout(resolve, 100))
+            await hideVoiceInputWindow()
           }
         } catch (transcriptionError) {
           console.error('Transcription failed:', transcriptionError)
-          setFeedbackMessage('error')
-          await delay(FEEDBACK_DURATION.ERROR)
+          await new Promise(resolve => setTimeout(resolve, 100))
+          await hideVoiceInputWindow()
+
+          // Parse error message and provide helpful feedback
+          const errorMsg =
+            transcriptionError instanceof Error
+              ? transcriptionError.message
+              : String(transcriptionError)
+
+          let userMessage = 'Failed to save transcription'
+
+          if (errorMsg.includes('No model is currently loaded')) {
+            userMessage =
+              'Model not loaded. Please start the model in Settings.'
+          } else if (errorMsg.includes('API key not found')) {
+            userMessage = 'API key missing. Please add it in Settings.'
+          } else if (errorMsg.includes('No speech-to-text model selected')) {
+            userMessage = 'No model selected. Please choose one in Settings.'
+          } else if (
+            errorMsg.includes('Model') &&
+            errorMsg.includes('not found')
+          ) {
+            userMessage = 'Selected model not found. Please choose another.'
+          } else if (
+            errorMsg.includes('network') ||
+            errorMsg.includes('fetch')
+          ) {
+            userMessage = 'Network error. Please check your connection.'
+          } else if (
+            errorMsg.toLowerCase().includes('quota') ||
+            errorMsg.toLowerCase().includes('limit')
+          ) {
+            userMessage = 'API quota exceeded. Check your API limits.'
+          }
+
+          await showToast(userMessage, 'error')
         }
+      } else {
+        await new Promise(resolve => setTimeout(resolve, 100))
+        await hideVoiceInputWindow()
       }
 
       recordingStartTimeRef.current = null
@@ -119,17 +175,13 @@ export function useVoiceRecording() {
       audioContextRef.current = null
 
       setIsProcessing(false)
-      setFeedbackMessage(null)
-      await hideVoiceInputWindow()
     } catch (error) {
       console.error('Failed to stop recording:', error)
       setIsRecording(false)
       setIsProcessing(false)
-      await showFeedbackAndHide(
-        setFeedbackMessage,
-        'error',
-        FEEDBACK_DURATION.ERROR * 2
-      )
+      await new Promise(resolve => setTimeout(resolve, 100))
+      await hideVoiceInputWindow()
+      await showToast('Unexpected error occurred', 'error')
     }
   }, [])
 
@@ -142,6 +194,9 @@ export function useVoiceRecording() {
 
     playAudioFeedback('cancel')
 
+    // Wait for audio to play before hiding
+    await new Promise(resolve => setTimeout(resolve, 200))
+
     cleanupMediaRecorder(mediaRecorderRef.current)
     mediaRecorderRef.current = null
 
@@ -152,11 +207,8 @@ export function useVoiceRecording() {
     cleanupAudioContext(audioContextRef.current)
     audioContextRef.current = null
 
-    await showFeedbackAndHide(
-      setFeedbackMessage,
-      'cancelled',
-      FEEDBACK_DURATION.CANCELLED
-    )
+    await hideVoiceInputWindow()
+    await showToast('Voice recording cancelled', 'warning')
   }, [])
 
   useEffect(() => {
@@ -174,7 +226,6 @@ export function useVoiceRecording() {
     isRecording,
     isProcessing,
     stream,
-    feedbackMessage,
     startRecording,
     stopRecording,
     cancelRecording,

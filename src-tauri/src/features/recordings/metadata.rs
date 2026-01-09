@@ -1,7 +1,12 @@
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 /// Comprehensive metadata for each recording
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(
+    export,
+    export_to = "../../src/features/transcriptions/types/generated/"
+)]
 #[serde(rename_all = "camelCase")]
 pub struct RecordingMetadata {
     // Core transcription data
@@ -46,7 +51,11 @@ pub struct RecordingMetadata {
     pub app_version: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(
+    export,
+    export_to = "../../src/features/transcriptions/types/generated/"
+)]
 #[serde(rename_all = "camelCase")]
 pub struct PromptContext {
     pub vocabulary_used: Vec<String>,
@@ -56,21 +65,33 @@ pub struct PromptContext {
     pub application_context: ApplicationContext,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(
+    export,
+    export_to = "../../src/features/transcriptions/types/generated/"
+)]
 #[serde(rename_all = "camelCase")]
 pub struct SnippetInfo {
     pub trigger: String,
     pub expansion: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(
+    export,
+    export_to = "../../src/features/transcriptions/types/generated/"
+)]
 #[serde(rename_all = "camelCase")]
 pub struct SystemContext {
     pub language: String,
     pub time: String, // Current time when recording was made
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(
+    export,
+    export_to = "../../src/features/transcriptions/types/generated/"
+)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplicationContext {
     pub name: String,

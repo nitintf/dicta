@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the main window",
-  "windows": ["main"],
+  "windows": ["main", "toast", "voice-input"],
   "permissions": [
     "core:default",
     "opener:default",
@@ -18,6 +18,8 @@
     "macos-permissions:default",
     "clipboard-manager:allow-write-text",
     "clipboard-manager:allow-read-text",
-    "shell:allow-open"
+    "shell:allow-open",
+    "core:event:allow-emit",
+    "core:event:allow-listen"
   ]
 }

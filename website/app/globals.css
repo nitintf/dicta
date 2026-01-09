@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 :root {
   --background: #000000;
@@ -31,11 +31,17 @@
   --font-serif: var(--font-playfair);
 }
 
+html {
+  background: #000000;
+  overscroll-behavior: none;
+}
+
 body {
   background: linear-gradient(to bottom, #000000 0%, #0a1a0a 50%, #000000 100%);
   background-attachment: fixed;
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
 }
 
 * {
@@ -43,7 +49,8 @@ body {
 }
 
 @keyframes gradient-shift {
-  0%, 100% {
+  0%,
+  100% {
     background-position: 0% 50%;
   }
   50% {

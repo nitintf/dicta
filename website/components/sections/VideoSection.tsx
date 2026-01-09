@@ -62,7 +62,7 @@ export default function VideoSection() {
               </div>
 
               <div className="text-center space-y-4 relative z-10">
-                <div className="w-20 h-20 mx-auto bg-primary/20 backdrop-blur-sm rounded-2xl flex items-center justify-center border border-primary/30 group-hover:scale-110 transition-transform cursor-pointer">
+                <div className="w-20 h-20 mx-auto bg-primary/20 backdrop-blur-sm rounded-2xl flex items-center justify-center border border-primary/30 transition-transform cursor-pointer">
                   <svg
                     className="w-10 h-10 text-primary ml-1"
                     fill="currentColor"

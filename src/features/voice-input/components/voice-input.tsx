@@ -19,7 +19,6 @@ export const VoiceInput = forwardRef<VoiceInputHandle>((_props, ref) => {
     isRecording,
     isProcessing,
     stream,
-    feedbackMessage,
     startRecording,
     stopRecording,
     cancelRecording,
@@ -67,31 +66,11 @@ export const VoiceInput = forwardRef<VoiceInputHandle>((_props, ref) => {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [cancelRecording])
 
-  const getFeedbackText = () => {
-    switch (feedbackMessage) {
-      case 'cancelled':
-        return 'Recording cancelled'
-      case 'completed':
-        return 'Saved!'
-      case 'error':
-        return 'Error saving recording'
-      case 'processing':
-        return 'Processing...'
-      default:
-        return null
-    }
-  }
-
-  const feedbackText = getFeedbackText()
-
   return (
     <VoiceInputContainer>
-      <CancelButton
-        onClick={cancelRecording}
-        disabled={isProcessing || feedbackMessage !== null}
-      />
+      <CancelButton onClick={cancelRecording} disabled={isProcessing} />
 
-      <div className="flex-1 flex items-center justify-center h-full relative">
+      <div className="flex-1 flex items-center justify-center h-full">
         {isProcessing ? (
           <TranscriberProcessing />
         ) : (
@@ -110,20 +89,12 @@ export const VoiceInput = forwardRef<VoiceInputHandle>((_props, ref) => {
             className="h-full w-full flex flex-1"
           />
         )}
-
-        {feedbackText && feedbackMessage !== 'processing' && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm rounded-full">
-            <div className="text-white text-xs font-medium px-3 text-center">
-              {feedbackText}
-            </div>
-          </div>
-        )}
       </div>
 
       <StopButton
         onClick={stopRecording}
         isRecording={isRecording}
-        isProcessing={isProcessing || feedbackMessage !== null}
+        isProcessing={isProcessing}
       />
     </VoiceInputContainer>
   )

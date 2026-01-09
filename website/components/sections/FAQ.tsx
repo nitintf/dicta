@@ -147,7 +147,7 @@ export default function FAQ() {
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
-                <button className="px-5 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/90 transition-all hover:scale-105">
+                <button className="px-5 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/90 transition-all">
                   Join Discord
                 </button>
                 <button className="px-5 py-2.5 bg-transparent text-foreground rounded-xl text-sm font-semibold border border-border hover:border-primary/30 transition-all">

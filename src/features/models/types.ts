@@ -1,18 +1,14 @@
-export type ModelType = 'cloud' | 'local'
+// Import generated types from Rust
+import type { ModelDefinition as GeneratedModelDefinition } from './types/generated'
 
-export type ModelPurpose = 'speech-to-text' | 'post-processing'
+// Re-export generated types
+export type { ModelType, ModelPurpose, ModelProvider } from './types/generated'
 
+// Re-export ModelDefinition for direct use
+export type { ModelDefinition } from './types/generated'
+
+// Additional frontend-only types
 export type ModelStatus = 'stopped' | 'loading' | 'ready' | 'error'
-
-export type ModelProvider =
-  | 'openai'
-  | 'anthropic'
-  | 'google'
-  | 'assemblyai'
-  | 'elevenlabs'
-  | 'ollama'
-  | 'lmstudio'
-  | 'local-whisper'
 
 export interface ModelCapabilities {
   accuracy: 'high' | 'medium' | 'low'
@@ -22,25 +18,12 @@ export interface ModelCapabilities {
   bestFor: string[] // Best use cases
 }
 
-export interface TranscriptionModel {
-  id: string
-  name: string
-  provider: ModelProvider
-  type: ModelType
-  purpose: ModelPurpose
-  engine?: string
-  size?: string
-  requiresApiKey: boolean
+// Extended model type with frontend-specific fields
+export interface TranscriptionModel extends GeneratedModelDefinition {
   hasApiKey?: boolean
   apiKey?: string
-  isSelected: boolean
-  isDownloaded?: boolean
-  path?: string
-  description?: string
   status?: ModelStatus
   capabilities?: ModelCapabilities
-  downloadUrl?: string
-  filename?: string
 }
 
 export interface ModelStatusInfo {

@@ -10,9 +10,9 @@ import Footer from "@/components/sections/Footer";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
       <Navbar />
-      <main>
+      <main className="flex-1 pt-24">
         <Hero />
         <div id="features">
           <Features />

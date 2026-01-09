@@ -3,7 +3,7 @@ use ts_rs::TS;
 
 /// Onboarding settings
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../src/types/generated/")]
+#[ts(export, export_to = "../../src/features/settings/types/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct OnboardingSettings {
     pub completed: bool,
@@ -11,7 +11,7 @@ pub struct OnboardingSettings {
 
 /// Voice input settings
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../src/types/generated/")]
+#[ts(export, export_to = "../../src/features/settings/types/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct VoiceInputSettings {
     pub shortcut: String,
@@ -20,7 +20,7 @@ pub struct VoiceInputSettings {
 
 /// Transcription settings
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../src/types/generated/")]
+#[ts(export, export_to = "../../src/features/settings/types/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct TranscriptionSettings {
     pub language: String,
@@ -31,7 +31,7 @@ pub struct TranscriptionSettings {
 
 /// Shortcuts settings
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../src/types/generated/")]
+#[ts(export, export_to = "../../src/features/settings/types/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct ShortcutsSettings {
     pub paste_last_transcript: String,
@@ -40,7 +40,7 @@ pub struct ShortcutsSettings {
 
 /// System settings
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../src/types/generated/")]
+#[ts(export, export_to = "../../src/features/settings/types/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct SystemSettings {
     pub show_in_dock: bool,
@@ -49,7 +49,7 @@ pub struct SystemSettings {
 
 /// Privacy settings
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../src/types/generated/")]
+#[ts(export, export_to = "../../src/features/settings/types/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct PrivacySettings {
     pub analytics: bool,
@@ -58,7 +58,7 @@ pub struct PrivacySettings {
 
 /// AI Processing settings
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../src/types/generated/")]
+#[ts(export, export_to = "../../src/features/settings/types/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct AiProcessingSettings {
     pub enabled: bool,
@@ -67,7 +67,7 @@ pub struct AiProcessingSettings {
 
 /// Root settings object
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../src/types/generated/")]
+#[ts(export, export_to = "../../src/features/settings/types/generated/")]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
     pub onboarding: OnboardingSettings,

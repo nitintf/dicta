@@ -1,26 +1,16 @@
+import Image from 'next/image'
+
 export default function Footer() {
   const links = {
     product: [
-      { name: 'Features', href: '#features' },
-      { name: 'Download', href: '#download' },
-      { name: 'Changelog', href: '#' },
-      { name: 'Roadmap', href: '#' },
-    ],
-    resources: [
-      { name: 'Documentation', href: '#' },
-      { name: 'API Reference', href: '#' },
-      { name: 'Tutorials', href: '#' },
-      { name: 'Community', href: '#' },
-    ],
-    company: [
-      { name: 'About', href: '#' },
-      { name: 'Blog', href: '#' },
-      { name: 'GitHub', href: 'https://github.com/nitintf/dicta' },
-      { name: 'Discord', href: '#' },
+      { name: 'Features', href: '/#features' },
+      { name: 'Download', href: '/#download' },
+      { name: 'Changelog', href: '/changelog' },
+      { name: 'Roadmap', href: '/roadmap' },
     ],
     legal: [
-      { name: 'Privacy Policy', href: '#' },
-      { name: 'Terms of Service', href: '#' },
+      { name: 'Privacy Policy', href: '/privacy-policy' },
+      { name: 'Terms of Service', href: '/terms-of-service' },
       { name: 'License (MIT)', href: '#' },
     ],
   }
@@ -28,13 +18,17 @@ export default function Footer() {
   return (
     <footer className="border-t border-border bg-secondary/10">
       <div className="max-w-7xl mx-auto px-6 py-16">
-        <div className="grid md:grid-cols-2 lg:grid-cols-6 gap-12 mb-12">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
           {/* Brand column */}
           <div className="lg:col-span-2 space-y-4">
             <div className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center text-primary-foreground font-bold text-xl">
-                D
-              </div>
+              <Image
+                src="/icon.png"
+                alt="Dicta"
+                className="w-10 h-10 rounded-lg"
+                width={40}
+                height={40}
+              />
               <span className="text-2xl font-bold">Dicta</span>
             </div>
             <p className="text-muted-foreground text-sm max-w-xs">
@@ -91,38 +85,6 @@ export default function Footer() {
             <h3 className="font-semibold mb-4">Product</h3>
             <ul className="space-y-3">
               {links.product.map(link => (
-                <li key={link.name}>
-                  <a
-                    href={link.href}
-                    className="text-muted-foreground hover:text-primary transition-colors text-sm"
-                  >
-                    {link.name}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="font-semibold mb-4">Resources</h3>
-            <ul className="space-y-3">
-              {links.resources.map(link => (
-                <li key={link.name}>
-                  <a
-                    href={link.href}
-                    className="text-muted-foreground hover:text-primary transition-colors text-sm"
-                  >
-                    {link.name}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="font-semibold mb-4">Company</h3>
-            <ul className="space-y-3">
-              {links.company.map(link => (
                 <li key={link.name}>
                   <a
                     href={link.href}

@@ -1,10 +1,12 @@
 import { z } from 'zod'
 
-import { settingsSchema } from '@/features/settings/schema'
-import { snippetsStoreSchema } from '@/features/snippets/schema'
-import { transcriptionsStoreSchema } from '@/features/transcriptions/schema'
-import { vibesStoreSchema } from '@/features/vibes/schema'
-import { vocabularyStoreSchema } from '@/features/vocabulary/schema'
+import {
+  settingsSchema,
+  snippetsSchema as snippetsStoreSchema,
+  transcriptionsSchema as transcriptionsStoreSchema,
+  vibesSchema as vibesStoreSchema,
+  vocabularySchema as vocabularyStoreSchema,
+} from '@/schemas/stores'
 
 // Map of file names to their schemas
 export const storeSchemas: Record<string, z.ZodSchema> = {
