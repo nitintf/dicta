@@ -12,7 +12,10 @@ mod types;
 mod utils;
 
 use features::ai_processing::post_process_transcript;
-use features::audio::enumerate_audio_devices;
+use features::audio::{
+    cancel_recording, enumerate_audio_devices, get_recording_state, start_recording,
+    stop_recording, AudioRecorder, RecordingStateManager,
+};
 use features::data::{export_all_data, import_all_data, import_from_json};
 use features::models::{
     auto_start_selected_models, delete_local_model, download_local_model, get_all_models,
@@ -22,7 +25,7 @@ use features::recordings::{delete_recording, get_all_transcriptions, get_recordi
 use features::security::{get_api_key, has_api_key, remove_api_key, store_api_key};
 use features::shortcuts::{
     disable_global_shortcuts, enable_global_shortcuts, update_paste_shortcut,
-    update_voice_input_shortcut, ShortcutManager,
+    update_voice_input_shortcut, RecordingShortcutHandler, ShortcutManager,
 };
 use features::transcription::{get_last_transcript, paste_last_transcript, transcribe_and_process};
 use utils::logger::{log_complete, log_failed, log_lifecycle_event, log_start, log_with_context};
@@ -95,12 +98,19 @@ pub fn run() {
     let devtools = tauri_plugin_devtools::init();
 
     let local_model_manager = Arc::new(Mutex::new(LocalModelManager::new()));
-
     let shortcut_manager = ShortcutManager::new();
+
+    // Audio recording state
+    let audio_recorder = Arc::new(std::sync::Mutex::new(AudioRecorder::new()));
+    let recording_state_manager = Arc::new(RecordingStateManager::new());
+    let recording_shortcut_handler = Arc::new(RecordingShortcutHandler::new());
 
     let mut builder = tauri::Builder::default()
         .manage(local_model_manager)
         .manage(shortcut_manager)
+        .manage(audio_recorder)
+        .manage(recording_state_manager)
+        .manage(recording_shortcut_handler)
         // .plugin(setup_logging().build())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -300,6 +310,11 @@ pub fn run() {
             has_api_key,
             // Audio devices
             enumerate_audio_devices,
+            // Audio recording
+            start_recording,
+            stop_recording,
+            cancel_recording,
+            get_recording_state,
             // Clipboard utilities
             features::clipboard::get_focused_app,
             // Shortcuts management

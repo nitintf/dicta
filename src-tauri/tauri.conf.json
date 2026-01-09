@@ -55,6 +55,7 @@
     "active": true,
     "targets": "all",
     "icon": ["icons/icon.png", "icons/icon.icns", "icons/icon.ico"],
+    "resources": ["../public/main.mp3", "../public/cancel.wav"],
     "macOS": {
       "minimumSystemVersion": "10.15"
     }

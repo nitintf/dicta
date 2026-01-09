@@ -8,6 +8,7 @@ export function ShortcutsPanel() {
   const {
     settings,
     setVoiceInputShortcut,
+    setPushToTalkShortcut,
     setPasteShortcut,
     setGlobalShortcutsEnabled,
   } = useSettingsStore()
@@ -33,13 +34,30 @@ export function ShortcutsPanel() {
           title="Voice input activation"
           description={
             settings.shortcuts.globalShortcutsEnabled
-              ? 'Shortcut to start/stop voice recording'
+              ? `Shortcut respects your recording mode (${settings.voiceInput.recordingMode === 'pushtotalk' ? 'Push-to-Talk' : 'Toggle'})`
               : 'Global shortcuts are disabled'
           }
           action={
             <ShortcutRecorder
               value={settings.voiceInput.shortcut}
               onChange={setVoiceInputShortcut}
+              placeholder="Not set"
+              disabled={!settings.shortcuts.globalShortcutsEnabled}
+            />
+          }
+        />
+
+        <SettingItem
+          title="Push-to-Talk shortcut"
+          description={
+            settings.shortcuts.globalShortcutsEnabled
+              ? 'Quick shortcut that always uses Push-to-Talk mode'
+              : 'Global shortcuts are disabled'
+          }
+          action={
+            <ShortcutRecorder
+              value={settings.voiceInput.pushToTalkShortcut}
+              onChange={setPushToTalkShortcut}
               placeholder="Not set"
               disabled={!settings.shortcuts.globalShortcutsEnabled}
             />

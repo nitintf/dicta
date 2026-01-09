@@ -1,8 +1,6 @@
 use crate::features::shortcuts::utils::parse_shortcut;
-use crate::SPOTLIGHT_LABEL;
 use std::sync::{Arc, Mutex};
-use tauri::{command, App, AppHandle, Emitter, Manager, Result, State};
-use tauri_nspanel::ManagerExt;
+use tauri::{command, App, AppHandle, Manager, Result, State};
 use tauri_plugin_global_shortcut::{
     Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutEvent, ShortcutState,
 };
@@ -10,6 +8,7 @@ use tauri_plugin_store::StoreExt;
 
 pub struct ShortcutManager {
     pub voice_input_shortcut: Arc<Mutex<Option<Shortcut>>>,
+    pub push_to_talk_shortcut: Arc<Mutex<Option<Shortcut>>>,
     pub paste_shortcut: Arc<Mutex<Option<Shortcut>>>,
     pub shortcuts_enabled: Arc<Mutex<bool>>,
 }
@@ -18,19 +17,24 @@ impl ShortcutManager {
     pub fn new() -> Self {
         Self {
             voice_input_shortcut: Arc::new(Mutex::new(None)),
+            push_to_talk_shortcut: Arc::new(Mutex::new(None)),
             paste_shortcut: Arc::new(Mutex::new(None)),
             shortcuts_enabled: Arc::new(Mutex::new(true)),
         }
     }
 }
 
-/// Registers the voice input and paste shortcuts
+/// Registers the voice input, PTT, and paste shortcuts
 pub fn register_voice_input_shortcut(app: &App) -> Result<()> {
     let voice_input_shortcut_str = get_voice_input_shortcut_from_settings(app.handle());
+    let ptt_shortcut_str = get_ptt_shortcut_from_settings(app.handle());
     let paste_shortcut_str = get_paste_shortcut_from_settings(app.handle());
 
     let voice_shortcut = parse_shortcut(&voice_input_shortcut_str)
         .unwrap_or(Shortcut::new(Some(Modifiers::ALT), Code::Space));
+
+    let ptt_shortcut = parse_shortcut(&ptt_shortcut_str)
+        .unwrap_or(Shortcut::new(Some(Modifiers::ALT), Code::KeyR));
 
     let paste_shortcut = parse_shortcut(&paste_shortcut_str).unwrap_or(Shortcut::new(
         Some(Modifiers::SUPER | Modifiers::SHIFT),
@@ -44,6 +48,7 @@ pub fn register_voice_input_shortcut(app: &App) -> Result<()> {
         tauri_plugin_global_shortcut::Builder::new()
             .with_shortcuts([
                 voice_shortcut.clone(),
+                ptt_shortcut.clone(),
                 paste_shortcut.clone(),
                 escape_shortcut.clone(),
             ])
@@ -51,6 +56,8 @@ pub fn register_voice_input_shortcut(app: &App) -> Result<()> {
             .with_handler(move |app, shortcut, event| {
                 if shortcut.id() == voice_shortcut.id() {
                     handle_voice_input_shortcut(app, shortcut, event);
+                } else if shortcut.id() == ptt_shortcut.id() {
+                    handle_ptt_shortcut(app, shortcut, event);
                 } else if shortcut.id() == paste_shortcut.id() {
                     handle_paste_shortcut(app, shortcut, event);
                 } else if shortcut.id() == escape_shortcut.id() {
@@ -64,6 +71,9 @@ pub fn register_voice_input_shortcut(app: &App) -> Result<()> {
     let shortcut_state = app.state::<ShortcutManager>();
     if let Ok(mut current) = shortcut_state.voice_input_shortcut.lock() {
         *current = Some(voice_shortcut);
+    }
+    if let Ok(mut current) = shortcut_state.push_to_talk_shortcut.lock() {
+        *current = Some(ptt_shortcut);
     }
     if let Ok(mut current) = shortcut_state.paste_shortcut.lock() {
         *current = Some(paste_shortcut);
@@ -88,29 +98,72 @@ fn get_voice_input_shortcut_from_settings(app: &AppHandle) -> String {
         .unwrap_or("Alt+Space".to_string())
 }
 
-/// Handles the voice input shortcut press
+/// Retrieves the PTT shortcut from settings
+fn get_ptt_shortcut_from_settings(app: &AppHandle) -> String {
+    let store = app.store("settings");
+    store
+        .ok()
+        .and_then(|store| store.get("settings"))
+        .and_then(|settings| {
+            settings
+                .as_object()
+                .and_then(|s| s.get("voiceInput"))
+                .and_then(|t| t.get("pushToTalkShortcut"))
+                .and_then(|m| m.as_str().map(String::from))
+        })
+        .unwrap_or("Alt+R".to_string())
+}
+
 fn handle_voice_input_shortcut(app: &tauri::AppHandle, shortcut: &Shortcut, event: ShortcutEvent) {
-    if event.state == ShortcutState::Pressed && event.id == shortcut.id() {
-        let panel = app.get_webview_panel(SPOTLIGHT_LABEL).unwrap();
-        if panel.is_visible() {
-            let handle = app.app_handle();
-            handle.emit("stop_recording", ()).unwrap();
-        } else {
-            let handle = app.app_handle();
-            handle.emit("show_voice_input", ()).unwrap();
-            panel.show();
-        }
+    if event.id == shortcut.id() {
+        let handler =
+            app.state::<std::sync::Arc<crate::features::shortcuts::RecordingShortcutHandler>>();
+        let handler_clone = handler.inner().clone();
+        let app_clone = app.clone();
+        let event_clone = event.clone();
+
+        tauri::async_runtime::spawn(async move {
+            if let Err(e) = handler_clone
+                .handle_recording_shortcut(&app_clone, &event_clone)
+                .await
+            {
+                log::error!("Failed to handle recording shortcut: {}", e);
+            }
+        });
     }
 }
 
-/// Handles the escape shortcut press - cancels recording if voice input panel is visible
+fn handle_ptt_shortcut(app: &tauri::AppHandle, shortcut: &Shortcut, event: ShortcutEvent) {
+    if event.id == shortcut.id() {
+        let handler =
+            app.state::<std::sync::Arc<crate::features::shortcuts::RecordingShortcutHandler>>();
+        let handler_clone = handler.inner().clone();
+        let app_clone = app.clone();
+        let event_clone = event.clone();
+
+        tauri::async_runtime::spawn(async move {
+            if let Err(e) = handler_clone
+                .handle_ptt_mode(&app_clone, &event_clone)
+                .await
+            {
+                log::error!("Failed to handle PTT shortcut: {}", e);
+            }
+        });
+    }
+}
+
 fn handle_escape_shortcut(app: &tauri::AppHandle, shortcut: &Shortcut, event: ShortcutEvent) {
     if event.state == ShortcutState::Pressed && event.id == shortcut.id() {
-        let panel = app.get_webview_panel(SPOTLIGHT_LABEL).unwrap();
-        if panel.is_visible() {
-            let handle = app.app_handle();
-            handle.emit("cancel_recording", ()).unwrap();
-        }
+        let handler =
+            app.state::<std::sync::Arc<crate::features::shortcuts::RecordingShortcutHandler>>();
+        let handler_clone = handler.inner().clone();
+        let app_clone = app.clone();
+
+        tauri::async_runtime::spawn(async move {
+            if let Err(e) = handler_clone.handle_escape_shortcut(&app_clone).await {
+                log::error!("Failed to handle escape shortcut: {}", e);
+            }
+        });
     }
 }
 

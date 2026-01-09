@@ -3,4 +3,4 @@
 /**
  * Onboarding settings
  */
-export type OnboardingSettings = { completed: boolean }
+export type OnboardingSettings = { completed: boolean, };

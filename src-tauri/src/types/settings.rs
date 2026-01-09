@@ -16,6 +16,8 @@ pub struct OnboardingSettings {
 pub struct VoiceInputSettings {
     pub shortcut: String,
     pub microphone_device_id: Option<String>,
+    pub recording_mode: String, // "toggle" or "pushtotalk"
+    pub push_to_talk_shortcut: String,
 }
 
 /// Transcription settings
@@ -45,6 +47,7 @@ pub struct ShortcutsSettings {
 pub struct SystemSettings {
     pub show_in_dock: bool,
     pub save_audio_recordings: bool,
+    pub play_sound_on_recording: bool,
 }
 
 /// Privacy settings
@@ -86,6 +89,8 @@ impl Default for Settings {
             voice_input: VoiceInputSettings {
                 shortcut: "Alt+Space".to_string(),
                 microphone_device_id: None,
+                recording_mode: "toggle".to_string(),
+                push_to_talk_shortcut: "Alt+R".to_string(),
             },
             transcription: TranscriptionSettings {
                 language: "en".to_string(),
@@ -100,6 +105,7 @@ impl Default for Settings {
             system: SystemSettings {
                 show_in_dock: true,
                 save_audio_recordings: false,
+                play_sound_on_recording: true,
             },
             privacy: PrivacySettings {
                 analytics: false,

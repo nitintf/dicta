@@ -3,7 +3,4 @@
 /**
  * Shortcuts settings
  */
-export type ShortcutsSettings = {
-  pasteLastTranscript: string
-  globalShortcutsEnabled: boolean
-}
+export type ShortcutsSettings = { pasteLastTranscript: string, globalShortcutsEnabled: boolean, };

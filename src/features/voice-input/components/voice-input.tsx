@@ -1,104 +1,85 @@
-import { forwardRef, useEffect, useImperativeHandle } from 'react'
+import { listen } from '@tauri-apps/api/event'
+import { useEffect, useState } from 'react'
 
 import { LiveWaveform } from '@/components/ui/live-waveform'
+import { useAudioRecording } from '@/hooks/use-audio-recording'
 
+import { AudioDots } from './audio-dots'
 import { CancelButton } from './cancel-button'
 import { StopButton } from './stop-button'
 import { VoiceInputContainer } from './voice-input-container'
-import { useTauriEvent } from '../../../hooks/use-tauri-event'
-import { useVoiceRecording } from '../hooks/use-voice-recording'
 
-export interface VoiceInputHandle {
-  start: () => Promise<void>
-  stop: () => Promise<void>
-  cancel: () => Promise<void>
-}
-
-export const VoiceInput = forwardRef<VoiceInputHandle>((_props, ref) => {
-  const {
-    isRecording,
-    isProcessing,
-    stream,
-    startRecording,
-    stopRecording,
-    cancelRecording,
-  } = useVoiceRecording()
-
-  useImperativeHandle(
-    ref,
-    () => ({
-      start: startRecording,
-      stop: stopRecording,
-      cancel: cancelRecording,
-    }),
-    [startRecording, stopRecording, cancelRecording]
-  )
-
-  useTauriEvent<void>(
-    'stop_recording',
-    () => {
-      if (isRecording) {
-        stopRecording()
-      }
-    },
-    [isRecording, stopRecording]
-  )
-
-  useTauriEvent<void>(
-    'cancel_recording',
-    () => {
-      if (isRecording) {
-        cancelRecording()
-      }
-    },
-    [isRecording, cancelRecording]
-  )
+export const VoiceInput = () => {
+  const recording = useAudioRecording()
+  const [audioLevel, setAudioLevel] = useState(0)
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        cancelRecording()
-      }
-    }
+    if (recording.isRecording) {
+      let isMounted = true
+      let unlistenFn: (() => void) | undefined
 
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [cancelRecording])
+      listen<number>('audio-level', event => {
+        console.log('audio-level', event.payload)
+        if (isMounted) setAudioLevel(event.payload)
+      }).then(unlisten => {
+        if (!isMounted) {
+          unlisten()
+          return
+        }
+        unlistenFn = unlisten
+      })
+
+      return () => {
+        isMounted = false
+        if (unlistenFn) unlistenFn()
+        setAudioLevel(0)
+      }
+    } else {
+      setAudioLevel(0)
+    }
+  }, [recording.isRecording])
+
+  const isTranscribing = recording.state === 'transcribing'
+  const isProcessing = recording.state === 'stopping' || isTranscribing
 
   return (
     <VoiceInputContainer>
-      <CancelButton onClick={cancelRecording} disabled={isProcessing} />
+      <CancelButton
+        onClick={recording.cancelRecording}
+        disabled={isProcessing}
+      />
 
       <div className="flex-1 flex items-center justify-center h-full">
         {isProcessing ? (
           <TranscriberProcessing />
         ) : (
-          <LiveWaveform
-            active={isRecording}
-            stream={stream}
-            mode="static"
-            barWidth={1.5}
-            barGap={1.5}
-            barRadius={5}
-            barColor="#ffffff"
-            height={20}
-            sensitivity={1.5}
-            fadeEdges
-            fadeWidth={50}
-            className="h-full w-full flex flex-1"
-          />
+          // <LiveWaveform
+          //   active={recording.isRecording}
+          //   stream={null} // Backend handles recording, no stream needed
+          //   mode="static"
+          //   barWidth={1.5}
+          //   barGap={1.5}
+          //   barRadius={5}
+          //   barColor="#ffffff"
+          //   height={20}
+          //   sensitivity={1.5}
+          //   fadeEdges
+          //   fadeWidth={50}
+          //   audioLevel={audioLevel} // Pass audio level from backend
+          //   className="h-full w-full flex flex-1"
+          // />
+          <AudioDots state={recording.state} audioLevel={audioLevel} />
         )}
       </div>
 
       <StopButton
-        onClick={stopRecording}
-        isRecording={isRecording}
+        onClick={recording.stopRecording}
+        isRecording={recording.isRecording}
         isProcessing={isProcessing}
       />
     </VoiceInputContainer>
   )
-})
+}
 
 const TranscriberProcessing = () => {
   return (

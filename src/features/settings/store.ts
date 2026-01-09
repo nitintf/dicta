@@ -32,6 +32,9 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
           shortcut: storedSettings?.voiceInput?.shortcut ?? 'Alt+Space',
           microphoneDeviceId:
             storedSettings?.voiceInput?.microphoneDeviceId ?? null,
+          recordingMode: storedSettings?.voiceInput?.recordingMode ?? 'toggle',
+          pushToTalkShortcut:
+            storedSettings?.voiceInput?.pushToTalkShortcut ?? '',
         },
         transcription: {
           language: storedSettings?.transcription?.language ?? 'en',
@@ -52,6 +55,8 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
           showInDock: storedSettings?.system?.showInDock ?? true,
           saveAudioRecordings:
             storedSettings?.system?.saveAudioRecordings ?? false,
+          playSoundOnRecording:
+            storedSettings?.system?.playSoundOnRecording ?? true,
         },
         privacy: {
           analytics: storedSettings?.privacy?.analytics ?? false,
@@ -362,6 +367,45 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       set({ settings: newSettings })
     } catch (error) {
       console.error('Error setting post-processing model:', error)
+    }
+  },
+
+  setRecordingMode: async (mode: 'toggle' | 'pushtotalk') => {
+    try {
+      const store = await getTauriStore()
+      const newSettings = {
+        ...get().settings,
+        voiceInput: {
+          ...get().settings.voiceInput,
+          recordingMode: mode,
+        },
+      }
+      await store.set('settings', newSettings)
+      await store.save()
+      set({ settings: newSettings })
+    } catch (error) {
+      console.error('Error saving recording mode:', error)
+    }
+  },
+
+  setPushToTalkShortcut: async (shortcut: string) => {
+    try {
+      const store = await getTauriStore()
+      const newSettings = {
+        ...get().settings,
+        voiceInput: {
+          ...get().settings.voiceInput,
+          pushToTalkShortcut: shortcut,
+        },
+      }
+      await store.set('settings', newSettings)
+      await store.save()
+      set({ settings: newSettings })
+
+      // Note: The shortcut will be registered on app restart or when shortcuts are re-enabled
+      // The backend doesn't have a dynamic update command for PTT shortcut yet
+    } catch (error) {
+      console.error('Error saving push-to-talk shortcut:', error)
     }
   },
 }))

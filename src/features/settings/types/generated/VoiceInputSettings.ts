@@ -3,7 +3,4 @@
 /**
  * Voice input settings
  */
-export type VoiceInputSettings = {
-  shortcut: string
-  microphoneDeviceId: string | null
-}
+export type VoiceInputSettings = { shortcut: string, microphoneDeviceId: string | null, recordingMode: string, pushToTalkShortcut: string, };

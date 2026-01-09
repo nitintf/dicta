@@ -19,6 +19,8 @@ export const defaultSettings: Settings = {
   voiceInput: {
     shortcut: 'Alt+Space',
     microphoneDeviceId: null,
+    recordingMode: 'toggle',
+    pushToTalkShortcut: '',
   },
   transcription: {
     language: 'en',
@@ -33,6 +35,7 @@ export const defaultSettings: Settings = {
   system: {
     showInDock: true,
     saveAudioRecordings: false,
+    playSoundOnRecording: true,
   },
   privacy: {
     analytics: false,

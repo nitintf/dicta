@@ -24,9 +24,9 @@ export function MicrophoneSelector() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="gap-2">
-          <Mic className="h-4 w-4" />
-          Change Microphone
+        <Button variant="outline" className="gap-2 max-w-[300px]">
+          <Mic className="h-4 w-4 shrink-0" />
+          <span className="truncate">Select microphone</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[300px]">
