@@ -68,7 +68,10 @@ impl RecordingShortcutHandler {
                 stop_recording(app.clone(), recorder.clone(), state_manager.clone()).await?;
             }
             _ => {
-                log::debug!("Toggle mode: Ignoring shortcut in state {:?}", current_state);
+                log::debug!(
+                    "Toggle mode: Ignoring shortcut in state {:?}",
+                    current_state
+                );
             }
         }
 
@@ -89,10 +92,7 @@ impl RecordingShortcutHandler {
                 let current_state = state_manager.get_state();
 
                 // Only start if idle or error
-                if matches!(
-                    current_state,
-                    RecordingState::Idle | RecordingState::Error
-                ) {
+                if matches!(current_state, RecordingState::Idle | RecordingState::Error) {
                     log::info!("PTT mode: Key pressed - starting recording");
                     start_recording(app.clone(), recorder.clone(), state_manager.clone()).await?;
                 }

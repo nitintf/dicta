@@ -16,9 +16,7 @@ use super::orchestrator_helpers::{
 };
 use super::providers::{elevenlabs, google, local_whisper, openai};
 use crate::features::recordings::metadata::RecordingMetadata;
-use crate::features::recordings::storage::{
-    create_recording_folder, get_all_recordings, read_metadata, save_audio_file, save_metadata,
-};
+use crate::features::recordings::storage::{get_all_recordings, read_metadata, save_metadata};
 
 // Global state for debouncing paste operations
 static LAST_PASTE_TIME: std::sync::Mutex<Option<Instant>> = std::sync::Mutex::new(None);
@@ -42,6 +40,7 @@ pub struct TranscribeRequest {
     pub timestamp: i64,
     pub duration: Option<f64>,
     pub language: Option<String>, // ISO 639-1 language code (e.g., "en", "es", "fr")
+    pub recording_device: Option<String>,
 }
 
 /// Unified transcription command that handles the entire flow:
@@ -94,13 +93,19 @@ pub async fn transcribe_and_process(
         return Ok(None);
     }
 
-    // Step 5: Create recording folder
-    let recording_folder = create_recording_folder(&app, request.timestamp)?;
+    // Step 5: Get the existing recording folder (already created during start_recording)
+    let recordings_dir = crate::features::recordings::get_recordings_dir(&app)?;
+    let recording_folder = recordings_dir.join(request.timestamp.to_string());
 
-    // Step 6: Save audio file
-    save_audio_file(&recording_folder, &request.audio_data)?;
+    // Verify the folder exists (it should have been created during recording)
+    if !recording_folder.exists() {
+        return Err(format!(
+            "Recording folder does not exist: {}",
+            recording_folder.display()
+        ));
+    }
 
-    // Step 7: Check if AI post-processing is enabled
+    // Step 6: Check if AI post-processing is enabled
     let settings = get_settings(&app)?;
     let ai_processing_enabled = settings
         .get("aiProcessing")
@@ -195,8 +200,8 @@ pub async fn transcribe_and_process(
         post_processing_model_name,
         post_processing_provider,
         request.language.unwrap_or_else(|| "en".to_string()),
-        "".to_string(), // recording_device - TODO: get from settings
-        focused_app.name.clone(),
+        request.recording_device.unwrap_or_else(|| "Unknown".to_string()),
+        focused_app_name,
         app_category.as_str().to_string(),
         ai_processing_enabled,
         style_applied,

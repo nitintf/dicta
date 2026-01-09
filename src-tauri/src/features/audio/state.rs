@@ -63,6 +63,8 @@ pub struct RecordingStateManager {
     mode: Arc<Mutex<RecordingMode>>,
     current_file: Arc<Mutex<Option<PathBuf>>>,
     error_message: Arc<Mutex<Option<String>>>,
+    recording_device: Arc<Mutex<Option<String>>>,
+    start_time: Arc<Mutex<Option<i64>>>,
 }
 
 impl RecordingStateManager {
@@ -72,6 +74,8 @@ impl RecordingStateManager {
             mode: Arc::new(Mutex::new(RecordingMode::Toggle)),
             current_file: Arc::new(Mutex::new(None)),
             error_message: Arc::new(Mutex::new(None)),
+            recording_device: Arc::new(Mutex::new(None)),
+            start_time: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -141,6 +145,26 @@ impl RecordingStateManager {
             self.get_state(),
             RecordingState::Idle | RecordingState::Error
         )
+    }
+
+    /// Set recording device
+    pub fn set_recording_device(&self, device: Option<String>) {
+        *self.recording_device.lock().unwrap() = device;
+    }
+
+    /// Get recording device
+    pub fn get_recording_device(&self) -> Option<String> {
+        self.recording_device.lock().unwrap().clone()
+    }
+
+    /// Set recording start time
+    pub fn set_start_time(&self, time: Option<i64>) {
+        *self.start_time.lock().unwrap() = time;
+    }
+
+    /// Get recording start time
+    pub fn get_start_time(&self) -> Option<i64> {
+        *self.start_time.lock().unwrap()
     }
 }
 

@@ -41,16 +41,12 @@ pub fn register_voice_input_shortcut(app: &App) -> Result<()> {
         Code::KeyV,
     ));
 
-    // ESC shortcut for canceling recording
-    let escape_shortcut = Shortcut::new(None, Code::Escape);
-
     app.handle().plugin(
         tauri_plugin_global_shortcut::Builder::new()
             .with_shortcuts([
                 voice_shortcut.clone(),
                 ptt_shortcut.clone(),
                 paste_shortcut.clone(),
-                escape_shortcut.clone(),
             ])
             .expect("Failed to register shortcut")
             .with_handler(move |app, shortcut, event| {
@@ -60,8 +56,6 @@ pub fn register_voice_input_shortcut(app: &App) -> Result<()> {
                     handle_ptt_shortcut(app, shortcut, event);
                 } else if shortcut.id() == paste_shortcut.id() {
                     handle_paste_shortcut(app, shortcut, event);
-                } else if shortcut.id() == escape_shortcut.id() {
-                    handle_escape_shortcut(app, shortcut, event);
                 }
             })
             .build(),
@@ -147,21 +141,6 @@ fn handle_ptt_shortcut(app: &tauri::AppHandle, shortcut: &Shortcut, event: Short
                 .await
             {
                 log::error!("Failed to handle PTT shortcut: {}", e);
-            }
-        });
-    }
-}
-
-fn handle_escape_shortcut(app: &tauri::AppHandle, shortcut: &Shortcut, event: ShortcutEvent) {
-    if event.state == ShortcutState::Pressed && event.id == shortcut.id() {
-        let handler =
-            app.state::<std::sync::Arc<crate::features::shortcuts::RecordingShortcutHandler>>();
-        let handler_clone = handler.inner().clone();
-        let app_clone = app.clone();
-
-        tauri::async_runtime::spawn(async move {
-            if let Err(e) = handler_clone.handle_escape_shortcut(&app_clone).await {
-                log::error!("Failed to handle escape shortcut: {}", e);
             }
         });
     }

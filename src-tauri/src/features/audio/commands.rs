@@ -68,10 +68,13 @@ pub async fn start_recording(
     let _ = app.emit("recording-state-changed", RecordingState::Starting);
 
     let timestamp = chrono::Local::now().timestamp_millis();
-    let recording_folder = crate::features::recordings::storage::create_recording_folder(&app, timestamp)?;
+    let recording_folder =
+        crate::features::recordings::storage::create_recording_folder(&app, timestamp)?;
     let file_path = recording_folder.join("audio.wav");
 
     state_manager.set_current_file(Some(file_path.clone()));
+    state_manager.set_start_time(Some(timestamp));
+    state_manager.set_recording_device(device_id.clone());
 
     if play_sound {
         let _ = play_recording_start_sound();
@@ -80,8 +83,6 @@ pub async fn start_recording(
     let mut recorder_guard = recorder
         .lock()
         .map_err(|e| format!("Failed to lock recorder: {}", e))?;
-
-    recorder_guard.set_app_handle(app.clone());
 
     match recorder_guard.start_recording(&file_path, device_id) {
         Ok(_) => {
@@ -93,7 +94,7 @@ pub async fn start_recording(
 
             if let Some(window) = app.get_webview_window("voice-input") {
                 let _ = window.show();
-                let _ = window.set_focus();
+                // Don't steal focus - keep user focused on their active application
             }
 
             log::info!("Recording started successfully");
@@ -109,6 +110,20 @@ pub async fn start_recording(
 
             state_manager.force_set_state(RecordingState::Error);
             state_manager.set_error(Some(e.clone()));
+
+            // Clean up the recording folder since recording failed
+            if let Some(parent) = file_path.parent() {
+                if parent.exists() {
+                    if let Err(cleanup_err) = std::fs::remove_dir_all(parent) {
+                        log::warn!("Failed to cleanup recording folder after error: {}", cleanup_err);
+                    } else {
+                        log::info!("Cleaned up recording folder after recording failure");
+                    }
+                }
+            }
+            state_manager.set_current_file(None);
+            state_manager.set_start_time(None);
+            state_manager.set_recording_device(None);
 
             if play_sound {
                 let _ = play_error_sound();
@@ -183,21 +198,44 @@ pub async fn stop_recording(
                 let state_manager_clone = state_manager.inner().clone();
                 let audio_path_clone = audio_path.clone();
 
+                // Get recording metadata
+                let recording_device = state_manager.get_recording_device();
+                let start_time = state_manager.get_start_time();
+
                 tokio::spawn(async move {
                     state_manager_clone.force_set_state(RecordingState::Transcribing);
                     let _ = app_clone.emit("recording-state-changed", RecordingState::Transcribing);
 
+                    // Extract timestamp from the folder path (folder name is the timestamp)
+                    let timestamp = audio_path_clone
+                        .parent()
+                        .and_then(|p| p.file_name())
+                        .and_then(|n| n.to_str())
+                        .and_then(|s| s.parse::<i64>().ok())
+                        .unwrap_or_else(|| chrono::Local::now().timestamp_millis());
+
+                    // Calculate duration in seconds
+                    let duration = start_time.map(|start| {
+                        let end_time = chrono::Local::now().timestamp_millis();
+                        ((end_time - start) as f64) / 1000.0
+                    });
+
                     match std::fs::read(&audio_path_clone) {
                         Ok(audio_data) => {
-                            let timestamp = chrono::Local::now().timestamp_millis();
-                            let request = crate::features::transcription::orchestrator::TranscribeRequest {
-                                audio_data,
-                                timestamp,
-                                duration: None,
-                                language: Some("en".to_string()),
-                            };
+                            let request =
+                                crate::features::transcription::orchestrator::TranscribeRequest {
+                                    audio_data,
+                                    timestamp,
+                                    duration,
+                                    language: Some("en".to_string()),
+                                    recording_device,
+                                };
 
-                            if let Some(local_model_state) = app_clone.try_state::<Arc<tokio::sync::Mutex<crate::features::models::LocalModelManager>>>() {
+                            if let Some(local_model_state) =
+                                app_clone.try_state::<Arc<
+                                    tokio::sync::Mutex<crate::features::models::LocalModelManager>,
+                                >>()
+                            {
                                 match crate::features::transcription::orchestrator::transcribe_and_process(
                                     request,
                                     app_clone.clone(),
@@ -208,17 +246,53 @@ pub async fn stop_recording(
                                     }
                                     Err(e) => {
                                         log::error!("Transcription failed: {}", e);
+
+                                        // Clean up the recording folder since transcription failed
+                                        if let Some(parent) = audio_path_clone.parent() {
+                                            if parent.exists() {
+                                                if let Err(cleanup_err) = std::fs::remove_dir_all(parent) {
+                                                    log::warn!("Failed to cleanup recording folder after transcription error: {}", cleanup_err);
+                                                } else {
+                                                    log::info!("Cleaned up recording folder after transcription failure");
+                                                }
+                                            }
+                                        }
+
+                                        state_manager_clone.force_set_state(RecordingState::Error);
+                                        state_manager_clone.set_error(Some(format!("Transcription failed: {}", e)));
+                                        let _ = app_clone.emit("recording-state-changed", RecordingState::Error);
                                     }
                                 }
                             }
                         }
                         Err(e) => {
                             log::error!("Failed to read audio file: {}", e);
+
+                            // Clean up the recording folder since we couldn't read the audio
+                            if let Some(parent) = audio_path_clone.parent() {
+                                if parent.exists() {
+                                    if let Err(cleanup_err) = std::fs::remove_dir_all(parent) {
+                                        log::warn!("Failed to cleanup recording folder after read error: {}", cleanup_err);
+                                    } else {
+                                        log::info!("Cleaned up recording folder after read failure");
+                                    }
+                                }
+                            }
+
+                            state_manager_clone.force_set_state(RecordingState::Error);
+                            state_manager_clone.set_error(Some(format!("Failed to read audio file: {}", e)));
+                            let _ = app_clone.emit("recording-state-changed", RecordingState::Error);
                         }
                     }
 
-                    state_manager_clone.force_set_state(RecordingState::Idle);
-                    let _ = app_clone.emit("recording-state-changed", RecordingState::Idle);
+                    // Only transition to Idle if we're not in Error state
+                    if state_manager_clone.get_state() != RecordingState::Error {
+                        state_manager_clone.force_set_state(RecordingState::Idle);
+                        state_manager_clone.set_current_file(None);
+                        state_manager_clone.set_start_time(None);
+                        state_manager_clone.set_recording_device(None);
+                        let _ = app_clone.emit("recording-state-changed", RecordingState::Idle);
+                    }
 
                     if let Some(window) = app_clone.get_webview_window("voice-input") {
                         let _ = window.hide();
@@ -240,6 +314,22 @@ pub async fn stop_recording(
 
             state_manager.force_set_state(RecordingState::Error);
             state_manager.set_error(Some(e.clone()));
+
+            // Clean up the recording folder since stopping failed
+            if let Some(audio_path) = state_manager.get_current_file() {
+                if let Some(parent) = audio_path.parent() {
+                    if parent.exists() {
+                        if let Err(cleanup_err) = std::fs::remove_dir_all(parent) {
+                            log::warn!("Failed to cleanup recording folder after stop error: {}", cleanup_err);
+                        } else {
+                            log::info!("Cleaned up recording folder after stop failure");
+                        }
+                    }
+                }
+            }
+            state_manager.set_current_file(None);
+            state_manager.set_start_time(None);
+            state_manager.set_recording_device(None);
 
             if play_sound {
                 let _ = play_error_sound();
@@ -290,16 +380,22 @@ pub async fn cancel_recording(
         let _ = recorder_guard.stop_recording();
     }
 
-    // Clean up the recording file
+    // Clean up the entire recording folder
     if let Some(file_path) = state_manager.get_current_file() {
-        if file_path.exists() {
-            if let Err(e) = std::fs::remove_file(&file_path) {
-                log::warn!("Failed to remove cancelled recording file: {}", e);
+        if let Some(parent) = file_path.parent() {
+            if parent.exists() {
+                if let Err(e) = std::fs::remove_dir_all(parent) {
+                    log::warn!("Failed to remove cancelled recording folder: {}", e);
+                } else {
+                    log::info!("Cleaned up cancelled recording folder");
+                }
             }
         }
     }
 
     state_manager.set_current_file(None);
+    state_manager.set_start_time(None);
+    state_manager.set_recording_device(None);
 
     state_manager.force_set_state(RecordingState::Idle);
 

@@ -44,6 +44,11 @@ pub fn create_recording_folder(app: &AppHandle, timestamp: i64) -> Result<PathBu
     fs::create_dir_all(&recording_folder)
         .map_err(|e| format!("Failed to create recording folder: {}", e))?;
 
+    // Create an empty meta.json file
+    let meta_path = recording_folder.join("meta.json");
+    fs::write(&meta_path, "{}")
+        .map_err(|e| format!("Failed to create empty meta.json: {}", e))?;
+
     Ok(recording_folder)
 }
 

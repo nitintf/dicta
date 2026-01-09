@@ -4,7 +4,6 @@ use hound::{WavSpec, WavWriter};
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use tauri::Emitter;
 
 /// Audio recorder state
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -39,7 +38,6 @@ pub struct AudioRecorder {
     writer: Arc<Mutex<Option<WavWriter<std::io::BufWriter<std::fs::File>>>>>,
     is_recording: Arc<AtomicBool>,
     config: RecorderConfig,
-    app_handle: Arc<Mutex<Option<tauri::AppHandle>>>,
 }
 
 impl AudioRecorder {
@@ -50,13 +48,6 @@ impl AudioRecorder {
             writer: Arc::new(Mutex::new(None)),
             is_recording: Arc::new(AtomicBool::new(false)),
             config: RecorderConfig::default(),
-            app_handle: Arc::new(Mutex::new(None)),
-        }
-    }
-
-    pub fn set_app_handle(&self, app: tauri::AppHandle) {
-        if let Ok(mut handle) = self.app_handle.lock() {
-            *handle = Some(app);
         }
     }
 
@@ -122,10 +113,12 @@ impl AudioRecorder {
         let writer = WavWriter::create(output_path.as_ref(), spec)
             .map_err(|e| format!("Failed to create WAV file: {}", e))?;
 
-        let writer = Arc::new(Mutex::new(Some(writer)));
-        let writer_clone = Arc::clone(&writer);
+        // Store writer directly in self.writer so both callback and stop_recording can access it
+        *self.writer.lock().unwrap() = Some(writer);
+
+        // Clone Arc references for the callback
+        let writer_clone = Arc::clone(&self.writer);
         let is_recording = Arc::clone(&self.is_recording);
-        let app_handle_clone = Arc::clone(&self.app_handle);
 
         let stream = device
             .build_input_stream(
@@ -135,21 +128,14 @@ impl AudioRecorder {
                         return;
                     }
 
-                    let mut max_amplitude = 0.0f32;
                     let mut writer_guard = writer_clone.lock().unwrap();
                     if let Some(ref mut writer) = *writer_guard {
                         for &sample in data.iter() {
-                            max_amplitude = max_amplitude.max(sample.abs());
                             let sample_i16 = (sample * i16::MAX as f32) as i16;
                             let _ = writer.write_sample(sample_i16);
                         }
-                    }
-
-                    if let Ok(handle_guard) = app_handle_clone.lock() {
-                        if let Some(ref app) = *handle_guard {
-                            let level = (max_amplitude * 100.0).min(100.0);
-                            let _ = app.emit("audio-level", level);
-                        }
+                    } else {
+                        log::error!("Writer is None in audio callback - this should not happen!");
                     }
                 },
                 |err| {
@@ -168,7 +154,6 @@ impl AudioRecorder {
         self.is_recording.store(true, Ordering::Release);
         *self.state.lock().unwrap() = RecorderState::Recording;
         *self.stream.lock().unwrap() = Some(stream);
-        *self.writer.lock().unwrap() = Some(writer.lock().unwrap().take().unwrap());
 
         log::info!("Recording started");
         Ok(())

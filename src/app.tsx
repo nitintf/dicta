@@ -13,14 +13,19 @@ import { OnboardingPage } from './features/onboarding'
 import { SnippetsPage } from './features/snippets'
 import { VibesPage } from './features/vibes'
 import { VocabularyPage } from './features/vocabulary'
+import { useMicrophoneDeviceSync } from './hooks/use-microphone-device-sync'
 import { ThemeProvider } from './providers/theme-provider'
 
 import './index.css'
 
 function App() {
+  // Initialize model status listener
   useEffect(() => {
     initializeModelStatusListener()
   }, [])
+
+  // Sync microphone device changes from tray menu
+  useMicrophoneDeviceSync()
 
   return (
     <ThemeProvider defaultTheme="system">

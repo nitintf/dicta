@@ -131,10 +131,11 @@ pub fn setup_tray(app: &App, model_manager_cleanup: Arc<Mutex<LocalModelManager>
         .build()?;
 
     // Create tray icon with menu
-    let _tray = TrayIconBuilder::new()
-        .menu(&tray_menu)
+    let _tray = TrayIconBuilder::with_id("main")
         .icon(app.default_window_icon().unwrap().clone())
         .icon_as_template(true)
+        .menu(&tray_menu)
+        // .show_menu_on_left_click(false)
         .on_menu_event(move |app, event| {
             handle_tray_event(app, event.id().as_ref(), model_manager_cleanup.clone());
         })
@@ -143,8 +144,143 @@ pub fn setup_tray(app: &App, model_manager_cleanup: Arc<Mutex<LocalModelManager>
     Ok(())
 }
 
-/// Sets the microphone device in settings
-fn set_microphone_device(app: &AppHandle, device_id: Option<String>) -> Result<()> {
+/// Rebuilds the tray menu with updated microphone selection
+fn rebuild_tray_menu(app: &AppHandle, _model_manager: Arc<Mutex<LocalModelManager>>) -> Result<()> {
+    // Get available audio devices
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let devices = runtime
+        .block_on(enumerate_audio_devices())
+        .unwrap_or_default();
+
+    // Get current microphone device from settings
+    let store = app.store("settings").map_err(|e| {
+        tauri::Error::Io(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("Failed to get store: {}", e),
+        ))
+    })?;
+    let current_device_id = store.get("settings").and_then(|settings| {
+        settings
+            .get("voiceInput")
+            .and_then(|voice_input| voice_input.get("microphoneDeviceId"))
+            .and_then(|device_id| device_id.as_str().map(|s| s.to_string()))
+    });
+
+    // Build microphone submenu dynamically
+    let mut microphone_submenu_builder = SubmenuBuilder::new(app, "Microphone");
+
+    // Add "Auto-detect" option with tick if selected
+    let auto_detect_label = if current_device_id.is_none() {
+        "✓ Auto-detect"
+    } else {
+        "Auto-detect"
+    };
+    microphone_submenu_builder = microphone_submenu_builder.item(&MenuItem::with_id(
+        app,
+        "mic-auto-detect",
+        auto_detect_label,
+        true,
+        None::<&str>,
+    )?);
+
+    // Add separator if we have devices
+    if !devices.is_empty() {
+        microphone_submenu_builder = microphone_submenu_builder.separator();
+    }
+
+    // Add each device with tick if selected
+    for device in &devices {
+        let menu_id = format!("mic-{}", device.device_id);
+        let is_selected = current_device_id.as_ref() == Some(&device.device_id);
+
+        let mut label = String::new();
+        if is_selected {
+            label.push_str("✓ ");
+        }
+        label.push_str(&device.label);
+        if device.is_recommended {
+            label.push_str(" (Recommended)");
+        }
+
+        microphone_submenu_builder = microphone_submenu_builder.item(&MenuItem::with_id(
+            app,
+            menu_id.as_str(),
+            label.as_str(),
+            true,
+            None::<&str>,
+        )?);
+    }
+
+    let microphone_submenu = microphone_submenu_builder.build()?;
+
+    // Rebuild the entire tray menu
+    let tray_menu = MenuBuilder::new(app)
+        .item(&MenuItem::with_id(app, "home", "Home", true, None::<&str>)?)
+        .separator()
+        .item(&MenuItem::with_id(
+            app,
+            "check-updates",
+            "Check for updates...",
+            true,
+            None::<&str>,
+        )?)
+        .separator()
+        .item(&MenuItem::with_id(
+            app,
+            "paste-last",
+            "Paste last transcript",
+            true,
+            Some("CmdOrCtrl+Shift+V"),
+        )?)
+        .separator()
+        .item(&microphone_submenu)
+        .item(&MenuItem::with_id(
+            app,
+            "shortcuts",
+            "Shortcuts",
+            true,
+            None::<&str>,
+        )?)
+        .separator()
+        .item(&MenuItem::with_id(
+            app,
+            "settings-tray",
+            "Settings",
+            true,
+            None::<&str>,
+        )?)
+        .separator()
+        .item(&MenuItem::with_id(
+            app,
+            "general-feedback",
+            "General feedback",
+            true,
+            None::<&str>,
+        )?)
+        .separator()
+        .item(&MenuItem::with_id(
+            app,
+            "quit",
+            "Quit Dicta",
+            true,
+            Some("CmdOrCtrl+Q"),
+        )?)
+        .build()?;
+
+    // Update the tray icon's menu
+    if let Some(tray) = app.tray_by_id("main") {
+        tray.set_menu(Some(tray_menu))?;
+    }
+
+    Ok(())
+}
+
+/// Sets the microphone device in settings and rebuilds tray menu
+fn set_microphone_device(
+    app: &AppHandle,
+    device_id: Option<String>,
+    model_manager: Arc<Mutex<LocalModelManager>>,
+) -> Result<()> {
     let store = app.store("settings").map_err(|e| {
         tauri::Error::Io(std::io::Error::new(
             std::io::ErrorKind::Other,
@@ -169,7 +305,10 @@ fn set_microphone_device(app: &AppHandle, device_id: Option<String>) -> Result<(
             if let Some(voice_input_obj) = voice_input.as_object_mut() {
                 voice_input_obj.insert(
                     "microphoneDeviceId".to_string(),
-                    device_id.map(|id| json!(id)).unwrap_or(json!(null)),
+                    device_id
+                        .as_ref()
+                        .map(|id| json!(id))
+                        .unwrap_or(json!(null)),
                 );
             }
         }
@@ -183,6 +322,17 @@ fn set_microphone_device(app: &AppHandle, device_id: Option<String>) -> Result<(
             format!("Failed to save store: {}", e),
         ))
     })?;
+
+    // Emit event to notify frontend
+    let _ = app.emit(
+        "microphone-device-changed",
+        json!({
+            "microphoneDeviceId": device_id
+        }),
+    );
+
+    // Rebuild tray menu to update checkmarks
+    rebuild_tray_menu(app, model_manager)?;
 
     Ok(())
 }
@@ -217,7 +367,7 @@ fn handle_tray_event(
         }
         "mic-auto-detect" => {
             // Set microphone to auto-detect (null)
-            if let Err(e) = set_microphone_device(app, None) {
+            if let Err(e) = set_microphone_device(app, None, model_manager_cleanup.clone()) {
                 eprintln!("Failed to set microphone to auto-detect: {}", e);
             } else {
                 println!("Microphone set to auto-detect");
@@ -226,7 +376,9 @@ fn handle_tray_event(
         event_id if event_id.starts_with("mic-") => {
             // Handle specific microphone selection
             let device_id = event_id.strip_prefix("mic-").unwrap().to_string();
-            if let Err(e) = set_microphone_device(app, Some(device_id.clone())) {
+            if let Err(e) =
+                set_microphone_device(app, Some(device_id.clone()), model_manager_cleanup.clone())
+            {
                 eprintln!("Failed to set microphone to {}: {}", device_id, e);
             } else {
                 println!("Microphone set to: {}", device_id);

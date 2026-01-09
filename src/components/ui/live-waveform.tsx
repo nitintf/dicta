@@ -234,7 +234,14 @@ export const LiveWaveform = ({
   // Handle microphone setup and teardown
   useEffect(() => {
     // If external stream is provided, use it; otherwise create one if active
-    const streamToUse = externalStream || (active ? undefined : null)
+    const getAudioStream = async () => {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+      })
+      return stream
+    }
+
+    const streamToUse = externalStream || (active ? getAudioStream() : null)
 
     if (!active || !streamToUse) {
       // Clean up audio context and analyser, but don't stop external stream
