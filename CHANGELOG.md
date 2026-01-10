@@ -1,3 +1,12 @@
+## [0.0.3](https://github.com/nitintf/dicta/compare/v0.0.2...v0.0.3) (2026-01-10)
+
+
+### Features
+
+* enhance onboarding process with permission checks and state management ([3685819](https://github.com/nitintf/dicta/commit/3685819829a0677779601f97ba8418994df8c980))
+
+
+
 ## [0.0.2](https://github.com/nitintf/dicta/compare/v0.0.1...v0.0.2) (2026-01-10)
 
 
