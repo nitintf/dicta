@@ -96,6 +96,8 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build Tauri app
+        env:
+          WHISPER_NO_I8MM: "1"
         run: pnpm tauri build --target ${{ matrix.target }}
 
       - name: Upload artifacts

@@ -52,6 +52,7 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WHISPER_NO_I8MM: "1"
           # Optional: Sign update bundles (NOT Apple code signing - this is for update verification)
           # Uncomment when you have generated Tauri signing keys
           # TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
