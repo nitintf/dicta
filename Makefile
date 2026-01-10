@@ -10,6 +10,9 @@ help:
 	@echo "  clean - Clean build artifacts"
 	@echo "  rename NEW_NAME=<new-name> - Rename the application (e.g., make rename NEW_NAME=my-app)"
 	@echo "  release [VERSION_TYPE=patch] - Create a new release (patch/minor/major, default: patch)"
+	@echo "    Example: make release VERSION_TYPE=minor"
+	@echo "    For dry-run or build-only, run: ./scripts/release.sh [patch|minor|major] --dry-run"
+	@echo "    Or: ./scripts/release.sh --build-only"
 	@echo "  help - Show this help message"
 
 # Generate TypeScript types from Rust
@@ -32,17 +35,8 @@ clean:
 	cd src-tauri && cargo clean
 	rm -rf src/types
 
-# Rename the application
-# Usage: make rename NEW_NAME=my-new-app-name
-rename:
-	@if [ -z "$(NEW_NAME)" ]; then \
-		echo "Error: NEW_NAME is required. Usage: make rename NEW_NAME=my-app-name"; \
-		exit 1; \
-	fi
-	@./scripts/rename-app.sh "$(NEW_NAME)"
-
 # Create a new release
 # Usage: make release [VERSION_TYPE=patch]
 # VERSION_TYPE can be: patch, minor, or major (default: patch)
 release:
-	@./scripts/release.sh "$(VERSION_TYPE)"
+	@VERSION_TYPE=$${VERSION_TYPE:-patch}; ./scripts/release.sh "$$VERSION_TYPE"
