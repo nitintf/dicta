@@ -95,13 +95,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: install dependencies (macOS)
-        if: ${{ matrix.target == 'aarch64-apple-darwin' }}
-        run: brew install cmake
-
       - name: Build Tauri app
         run: |
-          export CMAKE_ARGS="-DGGML_CPU_ARM_ARCH=armv8.2-a"
+          # Try building with disabled ARM extensions
+          export CMAKE_ARGS="-DGGML_CPU_NO_I8MM=ON -DGGML_CPU_NO_DOTPROD=ON"
           pnpm tauri build --target ${{ matrix.target }}
 
       - name: Upload artifacts
