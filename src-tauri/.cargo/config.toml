@@ -1,2 +1,9 @@
 [env]
 MACOSX_DEPLOYMENT_TARGET = "10.15"
+
+# Fix whisper-rs-sys compilation on aarch64-apple-darwin
+# The i8mm feature is required but CMake disables it with -mcpu=native
+# Override compiler flags to enable required ARM features
+[target.aarch64-apple-darwin.env]
+CFLAGS = "-mcpu=apple-m1"
+CXXFLAGS = "-mcpu=apple-m1"
