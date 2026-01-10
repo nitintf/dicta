@@ -60,9 +60,13 @@
 
 1. Download the latest `.dmg` from [Releases](https://github.com/yourusername/dicta/releases)
 2. Open the `.dmg` and drag Dicta to Applications
-3. Launch Dicta and grant microphone permissions when prompted
+3. Remove Gatekeeper quarantine (if you see "Apple cannot verify" warning):
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/Dicta.app
+   ```
+4. Launch Dicta and grant microphone permissions when prompted
 
-### From Source
+### From **Source**
 
 ```bash
 # Clone the repository

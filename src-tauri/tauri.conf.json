@@ -34,7 +34,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; media-src 'self' asset: https://asset.localhost;"
+      "csp": "default-src 'self'; img-src 'self' data: https://models.dev https://asset.localhost; media-src 'self' blob: tauri://localhost asset: https://asset.localhost;"
     }
   },
   "plugins": {
@@ -47,31 +47,15 @@
       "pubkey": "your-public-key-here"
     },
     "webview": {
-      "windows": [
-        "main"
-      ],
-      "permissions": [
-        "allow-popups",
-        "allow-modals"
-      ]
+      "windows": ["main"],
+      "permissions": ["allow-popups", "allow-modals"]
     }
   },
   "bundle": {
     "active": true,
-    "targets": [
-      "nsis",
-      "app",
-      "dmg"
-    ],
-    "icon": [
-      "icons/icon.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
-    ],
-    "resources": [
-      "../public/main.mp3",
-      "../public/cancel.wav"
-    ],
+    "targets": ["nsis", "app", "dmg"],
+    "icon": ["icons/icon.png", "icons/icon.icns", "icons/icon.ico"],
+    "resources": ["../public/main.mp3", "../public/cancel.wav"],
     "macOS": {
       "minimumSystemVersion": "13.0",
       "entitlements": "./entitlements.plist",

@@ -241,6 +241,13 @@ pub fn run() {
                     let _ = window_clone.hide();
                 }
             });
+
+            // Disable context menu in production
+            #[cfg(not(debug_assertions))]
+            {
+                let _ = window
+                    .eval("document.addEventListener('contextmenu', e => e.preventDefault());");
+            }
         }
 
         features::window::setup_pill_window(&handle)?;
