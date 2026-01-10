@@ -1,17 +1,39 @@
 import { Mic, Check, AlertCircle } from 'lucide-react'
 import { motion } from 'motion/react'
+import { useEffect, useMemo } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { usePermissions } from '@/hooks/use-permissions'
 
 import { useOnboarding } from '../../hooks/use-onboarding'
+import { useOnboardingStore } from '../../store'
 
 export function MicrophoneStep() {
   const { completeCurrentStepAndGoNext, markStepComplete } = useOnboarding()
-  const { permissions, requestMicrophone } = usePermissions()
+  const { permissions, requestMicrophone, checkPermissions } = usePermissions()
+  const storedPermissions = useOnboardingStore(state => state.permissions)
 
-  const isGranted = permissions.microphone === 'granted'
-  const isDenied = permissions.microphone === 'denied'
+  const effectivePermissions = useMemo(() => {
+    return storedPermissions || permissions
+  }, [storedPermissions, permissions])
+
+  const isGranted = effectivePermissions.microphone === 'granted'
+  const isDenied = effectivePermissions.microphone === 'denied'
+
+  useEffect(() => {
+    if (!storedPermissions) {
+      const refreshPermissions = async () => {
+        await checkPermissions()
+      }
+      void refreshPermissions()
+    }
+
+    const interval = setInterval(() => {
+      void checkPermissions()
+    }, 2000)
+
+    return () => clearInterval(interval)
+  }, [checkPermissions, storedPermissions])
 
   const handleRequest = async () => {
     const granted = await requestMicrophone()
@@ -53,7 +75,7 @@ export function MicrophoneStep() {
         <div className="space-y-6">
           <div className="rounded-xl border border-border p-5 bg-muted/50">
             <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 mt-0.5">
+              <div className="shrink-0 mt-0.5">
                 <svg
                   width="18"
                   height="18"
@@ -89,37 +111,31 @@ export function MicrophoneStep() {
                 Continue →
               </Button>
             </div>
-          ) : isDenied ? (
+          ) : (
             <div className="space-y-3">
-              <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
                 <div className="flex items-start gap-2.5">
                   <AlertCircle
-                    className="text-red-500 shrink-0 mt-0.5"
+                    className="text-amber-600 shrink-0 mt-0.5"
                     size={18}
                     strokeWidth={2.5}
                   />
                   <div className="flex-1">
-                    <p className="font-medium text-red-700 mb-1 text-sm">
-                      Permission denied
+                    <p className="font-medium text-amber-800 mb-1 text-sm">
+                      You don't have access
                     </p>
-                    <p className="text-xs text-red-600">
-                      Please enable microphone access in System Settings
+                    <p className="text-xs text-amber-700">
+                      {isDenied
+                        ? 'Please enable microphone access in System Settings → Privacy & Security → Microphone'
+                        : 'Click the button below to grant microphone access'}
                     </p>
                   </div>
                 </div>
               </div>
-              <Button
-                onClick={handleRequest}
-                variant="outline"
-                className="w-full h-10 text-sm"
-              >
-                Try Again
+              <Button onClick={handleRequest} className="w-full h-10 text-sm">
+                Access
               </Button>
             </div>
-          ) : (
-            <Button onClick={handleRequest} className="w-full h-10 text-sm">
-              Grant Microphone Access
-            </Button>
           )}
         </div>
       </div>

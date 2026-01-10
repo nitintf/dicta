@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+import type { PermissionsState } from '@/lib/permissions'
+
 export interface OnboardingStep {
   id: string
   title: string
@@ -12,12 +14,14 @@ export interface OnboardingStep {
 interface OnboardingState {
   currentStep: number
   steps: OnboardingStep[]
+  permissions: PermissionsState | null
 
   // Actions
   setCurrentStep: (step: number) => void
   nextStep: () => void
   previousStep: () => void
   markStepComplete: (stepId: string) => void
+  setPermissions: (permissions: PermissionsState) => void
   resetOnboarding: () => void
 }
 
@@ -57,6 +61,7 @@ export const useOnboardingStore = create<OnboardingState>()(
     (set, get) => ({
       currentStep: 0,
       steps: initialSteps,
+      permissions: null,
 
       setCurrentStep: (step: number) => {
         const { steps } = get()
@@ -87,10 +92,15 @@ export const useOnboardingStore = create<OnboardingState>()(
         }))
       },
 
+      setPermissions: (permissions: PermissionsState) => {
+        set({ permissions })
+      },
+
       resetOnboarding: () => {
         set({
           currentStep: 0,
           steps: initialSteps,
+          permissions: null,
         })
       },
     }),
@@ -99,6 +109,7 @@ export const useOnboardingStore = create<OnboardingState>()(
       partialize: state => ({
         currentStep: state.currentStep,
         steps: state.steps,
+        // Don't persist permissions - always check fresh on mount
       }),
     }
   )

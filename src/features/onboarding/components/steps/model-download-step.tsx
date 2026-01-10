@@ -2,12 +2,16 @@ import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { Download, Check, AlertCircle } from 'lucide-react'
 import { motion } from 'motion/react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 
-import { TranscriptionModel } from '../../../models'
+import {
+  TranscriptionModel,
+  useModelsStore,
+  initializeModels,
+} from '../../../models'
 import { useOnboarding } from '../../hooks/use-onboarding'
 
 interface DownloadProgress {
@@ -19,25 +23,41 @@ interface DownloadProgress {
 
 export function ModelDownloadStep() {
   const { completeCurrentStepAndGoNext, markStepComplete } = useOnboarding()
+  const { selectModel, startLocalModel } = useModelsStore()
   const [isDownloading, setIsDownloading] = useState(false)
   const [isDownloaded, setIsDownloaded] = useState(false)
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [downloadedMB, setDownloadedMB] = useState(0)
   const [totalMB, setTotalMB] = useState(75)
+  const hasStartedModelRef = useRef(false)
 
   const checkIfDownloaded = useCallback(async () => {
     try {
-      const models = await invoke<TranscriptionModel[]>('get_all_models')
+      // Reload models to get latest state
+      await initializeModels()
+      const { models } = useModelsStore.getState()
       const tinyModel = models.find(m => m.id === 'whisper-tiny')
       if (tinyModel?.isDownloaded) {
         setIsDownloaded(true)
         markStepComplete('model-download')
+
+        // Auto-select and start the model only once
+        if (!hasStartedModelRef.current) {
+          hasStartedModelRef.current = true
+          // selectModel will automatically start local models if downloaded
+          if (!tinyModel.isSelected) {
+            await selectModel('whisper-tiny')
+          } else if (tinyModel.status === 'stopped') {
+            // If selected but stopped, start it
+            await startLocalModel('whisper-tiny')
+          }
+        }
       }
     } catch (err) {
       console.error('Failed to check model status:', err)
     }
-  }, [markStepComplete])
+  }, [markStepComplete, selectModel, startLocalModel])
 
   useEffect(() => {
     // Check if model is already downloaded
@@ -58,6 +78,26 @@ export function ModelDownloadStep() {
             setIsDownloaded(true)
             setIsDownloading(false)
             markStepComplete('model-download')
+
+            // Auto-select and start the model after download completes (only once)
+            if (!hasStartedModelRef.current) {
+              hasStartedModelRef.current = true
+              setTimeout(async () => {
+                try {
+                  await initializeModels()
+                  const { models } = useModelsStore.getState()
+                  const tinyModel = models.find(m => m.id === 'whisper-tiny')
+                  if (tinyModel && !tinyModel.isSelected) {
+                    await selectModel('whisper-tiny')
+                  }
+                } catch (err) {
+                  console.error(
+                    'Failed to select/start model after download:',
+                    err
+                  )
+                }
+              }, 500)
+            }
           }
         }
       }
@@ -66,7 +106,7 @@ export function ModelDownloadStep() {
     return () => {
       unlisten.then(fn => fn())
     }
-  }, [markStepComplete, checkIfDownloaded])
+  }, [markStepComplete, checkIfDownloaded, selectModel, startLocalModel])
 
   const handleDownload = async () => {
     setIsDownloading(true)
@@ -95,8 +135,8 @@ export function ModelDownloadStep() {
         engineType: tinyModel.engine,
       })
 
-      // Recheck if downloaded
-      await checkIfDownloaded()
+      // Note: Model selection/starting is handled by the progress listener
+      // No need to call checkIfDownloaded here to avoid duplicate starts
     } catch (err) {
       console.error('Download failed:', err)
       setError(err instanceof Error ? err.message : 'Download failed')
@@ -137,7 +177,7 @@ export function ModelDownloadStep() {
         <div className="space-y-6">
           <div className="rounded-xl border border-border p-5 bg-muted/50">
             <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 mt-0.5">
+              <div className="shrink-0 mt-0.5">
                 <svg
                   width="18"
                   height="18"

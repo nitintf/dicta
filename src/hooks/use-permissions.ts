@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 
+import { useOnboardingStore } from '@/features/onboarding/store'
 import {
   checkAllPermissions,
   requestMicPermission,
@@ -16,14 +17,19 @@ export function usePermissions() {
     screenCapture: 'unknown',
   })
   const [loading, setLoading] = useState(true)
+  const setOnboardingPermissions = useOnboardingStore(
+    state => state.setPermissions
+  )
 
   const checkPermissions = useCallback(async () => {
     setLoading(true)
     const status = await checkAllPermissions()
     setPermissions(status)
+    // Also update onboarding store if we're in onboarding context
+    setOnboardingPermissions(status)
     setLoading(false)
     return status
-  }, [])
+  }, [setOnboardingPermissions])
 
   const requestMicrophone = async () => {
     const granted = await requestMicPermission()

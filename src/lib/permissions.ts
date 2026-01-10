@@ -31,6 +31,13 @@ export async function checkAllPermissions(): Promise<PermissionsState> {
       checkScreenRecordingPermission(),
     ])
 
+    // Log permission status for debugging
+    console.log('Permission check results:', {
+      microphone,
+      accessibility,
+      screenCapture,
+    })
+
     return {
       microphone: microphone ? 'granted' : 'denied',
       accessibility: accessibility ? 'granted' : 'denied',
@@ -61,8 +68,24 @@ export async function requestMicPermission(): Promise<boolean> {
 
 export async function requestAccessibility(): Promise<boolean> {
   try {
+    console.log('Requesting accessibility permission...')
     await requestAccessibilityPermission()
-    return await checkAccessibilityPermission()
+
+    // Wait a bit for the system to update the permission status
+    await new Promise(resolve => setTimeout(resolve, 500))
+
+    const hasPermission = await checkAccessibilityPermission()
+    console.log('Accessibility permission status after request:', hasPermission)
+
+    // If still not granted, wait a bit more and check again (user might be granting it)
+    if (!hasPermission) {
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      const recheck = await checkAccessibilityPermission()
+      console.log('Accessibility permission status after recheck:', recheck)
+      return recheck
+    }
+
+    return hasPermission
   } catch (error) {
     console.error('Error requesting accessibility permission:', error)
     return false

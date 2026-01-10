@@ -18,7 +18,6 @@ const iconMap = {
 interface StepSidebarProps {
   steps: OnboardingStep[]
   currentStep: number
-  onStepClick?: (stepIndex: number) => void
   onBack?: () => void
   canGoPrevious?: boolean
 }
@@ -26,13 +25,11 @@ interface StepSidebarProps {
 export function StepSidebar({
   steps,
   currentStep,
-  onStepClick,
   onBack,
   canGoPrevious,
 }: StepSidebarProps) {
   return (
     <div className="w-80 h-full px-2 py-2 flex flex-col bg-sidebar relative overflow-hidden">
-      {/* Decorative background illustration */}
       <div className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden">
         <MicrophoneIllustration className="text-onboarding-text absolute -right-8 top-0 w-full h-full" />
       </div>
@@ -44,7 +41,6 @@ export function StepSidebar({
         </h2>
       </div>
 
-      {/* Steps with connecting lines */}
       <div className="relative pl-2 flex-1 z-10">
         {steps.map((step, index) => {
           const Icon = iconMap[step.icon]
@@ -55,31 +51,33 @@ export function StepSidebar({
 
           return (
             <div key={step.id} className="relative">
-              <button
-                onClick={() => onStepClick?.(index)}
-                className="relative w-full text-left group mb-8"
-              >
+              <div className="relative w-full text-left mb-8">
                 <div className="flex items-start gap-4">
-                  {/* Icon with connecting line */}
                   <div className="relative flex flex-col items-center">
                     <div
                       className={cn(
-                        'flex size-10 shrink-0 items-center justify-center rounded-full border transition-all z-10 bg-white',
-                        isActive && 'border-onboarding-primary text-primary',
-                        isPast &&
-                          !isActive &&
-                          'border-onboarding-primary text-primary',
-                        isFuture && 'border-gray-300 text-gray-400'
+                        'flex size-10 shrink-0 items-center justify-center rounded-full border-2 transition-all z-10',
+                        isActive &&
+                          'border-primary bg-primary shadow-lg shadow-primary/20',
+                        isPast && !isActive && 'border-primary bg-primary/10',
+                        isFuture && 'border-gray-500/50 bg-transparent'
                       )}
                     >
-                      <Icon size={18} strokeWidth={1.5} />
+                      <Icon
+                        size={16}
+                        strokeWidth={2.5}
+                        className={cn(
+                          isActive && 'text-primary-foreground',
+                          isPast && !isActive && 'text-primary',
+                          isFuture && 'text-gray-500'
+                        )}
+                      />
                     </div>
 
-                    {/* Animated connecting line */}
                     {showLine && (
-                      <div className="absolute top-10 left-1/2 -translate-x-1/2 w-px h-14 bg-gray-200">
+                      <div className="absolute top-8 left-1/2 -translate-x-1/2 w-0.5 h-13 bg-gray-500/30">
                         <motion.div
-                          className="w-full h-full origin-top bg-onboarding-primary"
+                          className="w-full h-full origin-top bg-primary"
                           initial={{ scaleY: 0 }}
                           animate={{
                             scaleY: isPast ? 1 : 0,
@@ -94,28 +92,28 @@ export function StepSidebar({
                   </div>
 
                   {/* Text */}
-                  <div className="flex-1 min-w-0 pt-1">
+                  <div className="flex-1 min-w-0 pt-1.5">
                     <h3
                       className={cn(
-                        'font-medium text-sm mb-1 leading-snug',
-                        (isActive || isPast) && 'text-onboarding-text',
-                        isFuture && 'text-gray-400'
+                        'font-semibold text-base mb-1.5 leading-snug',
+                        (isActive || isPast) && 'text-foreground',
+                        isFuture && 'text-gray-500'
                       )}
                     >
                       {step.title}
                     </h3>
                     <p
                       className={cn(
-                        'text-xs leading-relaxed',
-                        (isActive || isPast) && 'text-gray-500',
-                        isFuture && 'text-gray-400'
+                        'text-sm leading-relaxed',
+                        (isActive || isPast) && 'text-muted-foreground',
+                        isFuture && 'text-gray-500/70'
                       )}
                     >
                       {step.description}
                     </p>
                   </div>
                 </div>
-              </button>
+              </div>
             </div>
           )
         })}

@@ -225,6 +225,17 @@ pub fn run() {
             show_in_dock
         );
 
+        // Check onboarding completion status
+        let onboarding_complete = if let Some(settings) = store.get("settings") {
+            settings
+                .get("onboarding")
+                .and_then(|onboarding| onboarding.get("completed"))
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false)
+        } else {
+            false // Default to not completed if no settings found
+        };
+
         let handle = app.app_handle();
 
         let model_manager_state = app.state::<Arc<Mutex<LocalModelManager>>>();
@@ -247,6 +258,13 @@ pub fn run() {
             {
                 let _ = window
                     .eval("document.addEventListener('contextmenu', e => e.preventDefault());");
+            }
+
+            // Show window if onboarding is not complete (user needs to complete onboarding)
+            if !onboarding_complete {
+                let _ = window.show();
+                let _ = window.set_focus();
+                log::info!("Showing main window for onboarding (onboarding not complete)");
             }
         }
 
