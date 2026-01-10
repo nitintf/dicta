@@ -13,7 +13,7 @@ set -euo pipefail
 # ============================================================================
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-readonly GITHUB_REPO="anomalyco/dicta"
+readonly GITHUB_REPO="nitintf/dicta"
 readonly APP_NAME="Dicta"
 readonly MAIN_BRANCH="main"
 
