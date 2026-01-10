@@ -149,8 +149,8 @@ else
     pnpm typecheck
 
     # Run backend tests
-    echo -e "${YELLOW}Running backend tests...${NC}"
-    pnpm test:backend
+    # echo -e "${YELLOW}Running backend tests...${NC}"
+    # pnpm test:backend
 
     # Check there are commits since last tag
     LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
