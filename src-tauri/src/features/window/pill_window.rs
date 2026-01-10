@@ -64,8 +64,7 @@ pub fn setup_pill_window(app: &AppHandle) -> tauri::Result<()> {
         Err(e) => log::error!("💊 Failed to convert pill to NSPanel: {:?}", e),
     }
 
-    crate::utils::logger::log_with_context(
-        log::Level::Info,
+    crate::utils::logger::info_with(
         "✅ Pill window created and ready",
         &[("x", &pos_x.to_string()), ("y", &pos_y.to_string())],
     );

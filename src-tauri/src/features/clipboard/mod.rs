@@ -1,3 +1,4 @@
+use crate::utils::logger;
 use tauri::command;
 
 #[cfg(target_os = "macos")]
@@ -67,14 +68,14 @@ pub async fn copy_and_paste(text: String) -> Result<(), String> {
         // DEBUG: Check which app is focused before pasting
         let focused_app = match get_focused_app().await {
             Ok(app) => {
-                println!("=== PASTE DEBUG ===");
-                println!("Focused app: {} ({})", app.name, app.bundle_id);
-                println!("Text to paste: {}", &text[..text.len().min(50)]);
+                logger::debug("=== PASTE DEBUG ===");
+                logger::debug(&format!("Focused app: {} ({})", app.name, app.bundle_id));
+                logger::debug(&format!("Text to paste: {}", &text[..text.len().min(50)]));
                 app
             }
             Err(e) => {
-                println!("=== PASTE DEBUG ===");
-                println!("ERROR: Could not get focused app: {}", e);
+                logger::debug("=== PASTE DEBUG ===");
+                logger::error(&format!("ERROR: Could not get focused app: {}", e));
                 return Err(e);
             }
         };
@@ -96,7 +97,7 @@ pub async fn copy_and_paste(text: String) -> Result<(), String> {
             .wait()
             .map_err(|e| format!("Failed to wait for pbcopy: {}", e))?;
 
-        println!("Clipboard updated, waiting before paste...");
+        logger::debug("Clipboard updated, waiting before paste...");
 
         // Wait for clipboard to be ready
         std::thread::sleep(std::time::Duration::from_millis(100));
@@ -116,10 +117,10 @@ pub async fn copy_and_paste(text: String) -> Result<(), String> {
             focused_app.name, focused_app.name
         );
 
-        println!(
+        logger::debug(&format!(
             "Activating {} and making it key window...",
             focused_app.name
-        );
+        ));
 
         Command::new("osascript")
             .arg("-e")
@@ -137,7 +138,7 @@ pub async fn copy_and_paste(text: String) -> Result<(), String> {
             end tell
         "#;
 
-        println!("Sending Cmd+V...");
+        logger::debug("Sending Cmd+V...");
 
         let output = Command::new("osascript")
             .arg("-e")
@@ -147,12 +148,12 @@ pub async fn copy_and_paste(text: String) -> Result<(), String> {
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            println!("Paste command failed: {}", stderr);
+            logger::error(&format!("Paste command failed: {}", stderr));
         } else {
-            println!("Paste command sent successfully");
+            logger::debug("Paste command sent successfully");
         }
 
-        println!("===================");
+        logger::debug("===================");
 
         Ok(())
     }

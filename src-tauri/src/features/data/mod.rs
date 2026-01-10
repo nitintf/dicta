@@ -1,3 +1,4 @@
+use crate::utils::logger;
 use serde_json::Value;
 use std::io::{Cursor, Write};
 use tauri::{command, AppHandle};
@@ -21,9 +22,9 @@ pub async fn export_all_data(app: AppHandle) -> Result<Vec<u8>, String> {
 
     for (store_name, file_name) in STORES {
         match export_store(&app, store_name, file_name, &mut zip) {
-            Ok(_) => println!("Exported {}", file_name),
+            Ok(_) => logger::info(&format!("Exported {}", file_name)),
             Err(e) => {
-                eprintln!("Warning: Failed to export {}: {}", file_name, e);
+                logger::warn(&format!("Warning: Failed to export {}: {}", file_name, e));
                 // Continue with other stores even if one fails
             }
         }

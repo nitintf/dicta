@@ -9,7 +9,8 @@ use tokio::sync::Mutex;
 use crate::features::clipboard;
 use crate::features::models::LocalModelManager;
 use crate::features::security;
-use crate::utils::app_categorization::{categorize_app, AppCategory};
+use crate::utils::app_categorization::categorize_app;
+use crate::utils::logger;
 
 use super::orchestrator_helpers::{
     apply_ai_post_processing, create_empty_prompt_context, get_model_name,
@@ -72,7 +73,7 @@ pub async fn transcribe_and_process(
     let focused_app_name = focused_app.name.clone();
 
     if is_audio_silent(&request.audio_data)? {
-        println!("Audio is silent, skipping transcription");
+        logger::debug("Audio is silent, skipping transcription");
 
         // Clean up the recording folder since audio is silent
         let recordings_dir = crate::features::recordings::get_recordings_dir(&app)?;
@@ -104,7 +105,7 @@ pub async fn transcribe_and_process(
 
     // Skip if transcription is empty
     if raw_transcription.trim().is_empty() {
-        println!("Transcription is empty, skipping");
+        logger::debug("Transcription is empty, skipping");
         return Ok(None);
     }
 
@@ -153,10 +154,10 @@ pub async fn transcribe_and_process(
             ),
             Err(e) => {
                 // Post-processing failed (likely no model selected) - continue without it
-                eprintln!(
+                logger::warn(&format!(
                     "Post-processing failed: {}. Continuing with raw transcription.",
                     e
-                );
+                ));
 
                 // Show notification to user
                 use tauri_plugin_notification::NotificationExt;
@@ -247,12 +248,12 @@ pub async fn transcribe_and_process(
             .map_err(|e| format!("Failed to emit hide event: {}", e))?;
 
         if let Err(e) = clipboard::copy_and_paste(final_text.clone()).await {
-            eprintln!("Failed to copy and paste: {}", e);
+            logger::error(&format!("Failed to copy and paste: {}", e));
         }
     } else if auto_copy_to_clipboard {
         use tauri_plugin_clipboard_manager::ClipboardExt;
         if let Err(e) = app.clipboard().write_text(final_text.clone()) {
-            eprintln!("Failed to copy to clipboard: {}", e);
+            logger::error(&format!("Failed to copy to clipboard: {}", e));
         }
     }
 
@@ -369,7 +370,7 @@ pub async fn paste_last_transcript(app: AppHandle) -> Result<(), String> {
 
         if let Some(last) = *last_time {
             if now.duration_since(last) < DEBOUNCE_DURATION {
-                println!("Paste triggered too soon, debouncing");
+                logger::debug("Paste triggered too soon, debouncing");
                 return Ok(());
             }
         }
@@ -377,7 +378,7 @@ pub async fn paste_last_transcript(app: AppHandle) -> Result<(), String> {
         *last_time = Some(now);
     }
 
-    println!("Pasting last transcript");
+    logger::info("Pasting last transcript");
 
     // Get the last transcript
     let text = get_last_transcript(app).await?;
@@ -511,10 +512,10 @@ fn is_audio_silent(audio_data: &[u8]) -> Result<bool, String> {
     // Audio is considered silent if both RMS and peak are below thresholds
     let is_silent = rms < RMS_THRESHOLD && peak < PEAK_THRESHOLD;
 
-    println!(
+    logger::debug(&format!(
         "Audio analysis - RMS: {:.4}, Peak: {:.4}, Silent: {}",
         rms, peak, is_silent
-    );
+    ));
 
     Ok(is_silent)
 }

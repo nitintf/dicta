@@ -1,4 +1,5 @@
 use crate::features::shortcuts::utils::parse_shortcut;
+use crate::utils::logger;
 use std::sync::{Arc, Mutex};
 use tauri::{command, App, AppHandle, Manager, Result, State};
 use tauri_plugin_global_shortcut::{
@@ -206,7 +207,10 @@ pub async fn update_voice_input_shortcut(
     shortcut_str: String,
     shortcut_state: State<'_, ShortcutManager>,
 ) -> std::result::Result<(), String> {
-    println!("Updating voice input shortcut to: {}", shortcut_str);
+    logger::info(&format!(
+        "Updating voice input shortcut to: {}",
+        shortcut_str
+    ));
 
     // Check if shortcuts are enabled
     let shortcuts_enabled = *shortcut_state
@@ -215,7 +219,7 @@ pub async fn update_voice_input_shortcut(
         .map_err(|e| format!("Failed to lock shortcuts_enabled: {}", e))?;
 
     if !shortcuts_enabled {
-        println!("Shortcuts are disabled, skipping registration");
+        logger::info("Shortcuts are disabled, skipping registration");
         return Ok(());
     }
 
@@ -226,7 +230,7 @@ pub async fn update_voice_input_shortcut(
     // Unregister old shortcut if it exists
     if let Ok(mut old_shortcut) = shortcut_state.voice_input_shortcut.lock() {
         if let Some(old) = old_shortcut.take() {
-            println!("Unregistering old voice input shortcut");
+            logger::info("Unregistering old voice input shortcut");
             let _ = app.global_shortcut().unregister(old);
         }
     }
@@ -244,7 +248,7 @@ pub async fn update_voice_input_shortcut(
         *current = Some(shortcut_clone);
     }
 
-    println!("Voice input shortcut updated successfully");
+    logger::info("Voice input shortcut updated successfully");
     Ok(())
 }
 
@@ -255,7 +259,7 @@ pub async fn update_paste_shortcut(
     shortcut_str: String,
     shortcut_state: State<'_, ShortcutManager>,
 ) -> std::result::Result<(), String> {
-    println!("Updating paste shortcut to: {}", shortcut_str);
+    logger::info(&format!("Updating paste shortcut to: {}", shortcut_str));
 
     // Check if shortcuts are enabled
     let shortcuts_enabled = *shortcut_state
@@ -264,7 +268,7 @@ pub async fn update_paste_shortcut(
         .map_err(|e| format!("Failed to lock shortcuts_enabled: {}", e))?;
 
     if !shortcuts_enabled {
-        println!("Shortcuts are disabled, skipping registration");
+        logger::info("Shortcuts are disabled, skipping registration");
         return Ok(());
     }
 
@@ -275,7 +279,7 @@ pub async fn update_paste_shortcut(
     // Unregister old shortcut if it exists
     if let Ok(mut old_shortcut) = shortcut_state.paste_shortcut.lock() {
         if let Some(old) = old_shortcut.take() {
-            println!("Unregistering old paste shortcut");
+            logger::info("Unregistering old paste shortcut");
             let _ = app.global_shortcut().unregister(old);
         }
     }
@@ -293,20 +297,20 @@ pub async fn update_paste_shortcut(
         *current = Some(shortcut_clone);
     }
 
-    println!("Paste shortcut updated successfully");
+    logger::info("Paste shortcut updated successfully");
     Ok(())
 }
 
 /// Handles the paste last transcript shortcut
 fn handle_paste_shortcut(app: &AppHandle, shortcut: &Shortcut, event: ShortcutEvent) {
     if event.state == ShortcutState::Pressed && event.id == shortcut.id() {
-        println!("Paste shortcut triggered");
+        logger::info("Paste shortcut triggered");
 
         // Trigger paste in async runtime
         let app_clone = app.clone();
         tauri::async_runtime::spawn(async move {
             if let Err(e) = crate::features::transcription::paste_last_transcript(app_clone).await {
-                eprintln!("Failed to paste last transcript: {}", e);
+                logger::error(&format!("Failed to paste last transcript: {}", e));
             }
         });
     }
@@ -318,7 +322,7 @@ pub async fn disable_global_shortcuts(
     app: AppHandle,
     shortcut_state: State<'_, ShortcutManager>,
 ) -> std::result::Result<(), String> {
-    println!("Disabling all global shortcuts");
+    logger::info("Disabling all global shortcuts");
 
     // Unregister voice input shortcut
     if let Ok(mut voice_shortcut) = shortcut_state.voice_input_shortcut.lock() {
@@ -346,7 +350,7 @@ pub async fn disable_global_shortcuts(
         *enabled = false;
     }
 
-    println!("All global shortcuts disabled");
+    logger::info("All global shortcuts disabled");
     Ok(())
 }
 
@@ -356,7 +360,7 @@ pub async fn enable_global_shortcuts(
     app: AppHandle,
     shortcut_state: State<'_, ShortcutManager>,
 ) -> std::result::Result<(), String> {
-    println!("Enabling all global shortcuts");
+    logger::info("Enabling all global shortcuts");
 
     // Set shortcuts as enabled
     if let Ok(mut enabled) = shortcut_state.shortcuts_enabled.lock() {
@@ -410,7 +414,7 @@ pub async fn enable_global_shortcuts(
         *current = Some(escape_clone);
     }
 
-    println!("All global shortcuts enabled");
+    logger::info("All global shortcuts enabled");
     Ok(())
 }
 
@@ -437,7 +441,7 @@ pub async fn register_ptt_shortcut(
     shortcut_str: String,
     shortcut_state: State<'_, ShortcutManager>,
 ) -> std::result::Result<(), String> {
-    println!("Registering PTT shortcut: {}", shortcut_str);
+    logger::info(&format!("Registering PTT shortcut: {}", shortcut_str));
 
     // Check if shortcuts are enabled
     let shortcuts_enabled = *shortcut_state
@@ -446,7 +450,7 @@ pub async fn register_ptt_shortcut(
         .map_err(|e| format!("Failed to lock shortcuts_enabled: {}", e))?;
 
     if !shortcuts_enabled {
-        println!("Shortcuts are disabled, skipping PTT registration");
+        logger::info("Shortcuts are disabled, skipping PTT registration");
         return Ok(());
     }
 
@@ -467,7 +471,7 @@ pub async fn register_ptt_shortcut(
         *current = Some(shortcut_clone);
     }
 
-    println!("PTT shortcut registered successfully");
+    logger::info("PTT shortcut registered successfully");
     Ok(())
 }
 
@@ -477,7 +481,7 @@ pub async fn unregister_ptt_shortcut(
     app: AppHandle,
     shortcut_state: State<'_, ShortcutManager>,
 ) -> std::result::Result<(), String> {
-    println!("Unregistering PTT shortcut");
+    logger::info("Unregistering PTT shortcut");
 
     // Unregister PTT shortcut
     if let Ok(mut ptt_shortcut) = shortcut_state.push_to_talk_shortcut.lock() {
@@ -486,7 +490,7 @@ pub async fn unregister_ptt_shortcut(
         }
     }
 
-    println!("PTT shortcut unregistered");
+    logger::info("PTT shortcut unregistered");
     Ok(())
 }
 
@@ -497,7 +501,7 @@ pub async fn update_ptt_shortcut(
     shortcut_str: String,
     shortcut_state: State<'_, ShortcutManager>,
 ) -> std::result::Result<(), String> {
-    println!("Updating PTT shortcut to: {}", shortcut_str);
+    logger::info(&format!("Updating PTT shortcut to: {}", shortcut_str));
 
     // Check if shortcuts are enabled
     let shortcuts_enabled = *shortcut_state
@@ -506,14 +510,14 @@ pub async fn update_ptt_shortcut(
         .map_err(|e| format!("Failed to lock shortcuts_enabled: {}", e))?;
 
     if !shortcuts_enabled {
-        println!("Shortcuts are disabled, skipping PTT update");
+        logger::info("Shortcuts are disabled, skipping PTT update");
         return Ok(());
     }
 
     // Unregister old shortcut
     if let Ok(mut old_shortcut) = shortcut_state.push_to_talk_shortcut.lock() {
         if let Some(old) = old_shortcut.take() {
-            println!("Unregistering old PTT shortcut");
+            logger::info("Unregistering old PTT shortcut");
             let _ = app.global_shortcut().unregister(old);
         }
     }
@@ -534,7 +538,7 @@ pub async fn update_ptt_shortcut(
         *current = Some(shortcut_clone);
     }
 
-    println!("PTT shortcut updated successfully");
+    logger::info("PTT shortcut updated successfully");
     Ok(())
 }
 

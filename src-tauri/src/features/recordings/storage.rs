@@ -1,3 +1,4 @@
+use crate::utils::logger;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -145,10 +146,10 @@ pub async fn get_all_transcriptions(app: AppHandle) -> Result<Vec<TranscriptionR
                 });
             }
             Err(e) => {
-                eprintln!(
+                logger::warn(&format!(
                     "Warning: Failed to read metadata for {:?}: {}",
                     recording_folder, e
-                );
+                ));
                 // Continue with other recordings
             }
         }

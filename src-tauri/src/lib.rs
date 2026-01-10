@@ -30,7 +30,7 @@ use features::shortcuts::{
     RecordingShortcutHandler, ShortcutManager,
 };
 use features::transcription::{get_last_transcript, paste_last_transcript, transcribe_and_process};
-use utils::logger::{log_complete, log_failed, log_lifecycle_event, log_start, log_with_context};
+use utils::logger;
 
 use std::sync::Arc;
 use std::time::Instant;
@@ -50,46 +50,6 @@ fn set_show_in_dock(app: tauri::AppHandle, show: bool) -> Result<(), String> {
     app.set_activation_policy(policy)
         .map_err(|e| format!("Failed to set activation policy: {}", e))?;
     Ok(())
-}
-
-/// Setup logging with rotation and filtering
-fn setup_logging() -> tauri_plugin_log::Builder {
-    use chrono::Local;
-    use tauri_plugin_log::{Target, TargetKind};
-
-    let today = Local::now().format("%Y-%m-%d").to_string();
-
-    tauri_plugin_log::Builder::default()
-        .targets([
-            Target::new(TargetKind::Stdout).filter(|metadata| {
-                // Filter out noisy logs
-                let target = metadata.target();
-                !target.contains("whisper_rs")
-                    && !target.contains("audio::level_meter")
-                    && !target.contains("cpal")
-                    && !target.contains("rubato")
-                    && !target.contains("hound")
-            }),
-            Target::new(TargetKind::LogDir {
-                file_name: Some(format!("dicta-{}", today)),
-            })
-            .filter(|metadata| {
-                // Filter out noisy logs from file as well
-                let target = metadata.target();
-                !target.contains("whisper_rs")
-                    && !target.contains("audio::level_meter")
-                    && !target.contains("cpal")
-                    && !target.contains("rubato")
-                    && !target.contains("hound")
-            }),
-        ])
-        .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepAll)
-        .max_file_size(10_000_000) // 10MB per file
-        .level(if cfg!(debug_assertions) {
-            log::LevelFilter::Debug
-        } else {
-            log::LevelFilter::Info
-        })
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -133,7 +93,7 @@ pub fn run() {
     // Devtools plugin initializes logging automatically, so we skip it in debug mode
     #[cfg(not(debug_assertions))]
     {
-        builder = builder.plugin(setup_logging().build());
+        builder = builder.plugin(logger::setup_logging().build());
     }
 
     #[cfg(target_os = "macos")]
@@ -151,9 +111,8 @@ pub fn run() {
     #[cfg(target_os = "macos")]
     let setup_fn = move |app: &mut tauri::App| {
         // Setup panic handler
-        log_start("PANIC_HANDLER_SETUP");
-        log_with_context(
-            log::Level::Debug,
+        logger::info("🚀 PANIC_HANDLER_SETUP STARTING");
+        logger::debug_with(
             "Setting up panic handler",
             &[("component", "panic_handler")],
         );
@@ -173,9 +132,8 @@ pub fn run() {
             };
 
             log::error!("💥 CRITICAL PANIC at {}: {}", location, message);
-            log_failed("PANIC", "Application panic occurred");
-            log_with_context(
-                log::Level::Error,
+            logger::error("❌ PANIC FAILED: Application panic occurred");
+            logger::error_with(
                 "Panic details",
                 &[
                     ("panic_location", &location),
@@ -183,7 +141,7 @@ pub fn run() {
                     ("severity", "critical"),
                 ],
             );
-            eprintln!("Application panic at {}: {}", location, message);
+            logger::error(&format!("Application panic at {}: {}", location, message));
 
             // Try to save panic info to a crash file for debugging
             if let Ok(home_dir) = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")) {
@@ -202,7 +160,10 @@ pub fn run() {
         }));
 
         log::info!("✅ Panic handler configured");
-        log_lifecycle_event("APPLICATION_START", Some(app_version), None);
+        logger::info(&format!(
+            "🚀 LIFECYCLE APPLICATION_START - Version: {}",
+            app_version
+        ));
 
         let store = app
             .store("settings")
@@ -226,10 +187,10 @@ pub fn run() {
 
         app.set_activation_policy(policy);
 
-        println!(
+        logger::info(&format!(
             "Applied dock setting from store: show_in_dock={}",
             show_in_dock
-        );
+        ));
 
         // Check onboarding completion status
         let onboarding_complete = if let Some(settings) = store.get("settings") {
@@ -283,25 +244,21 @@ pub fn run() {
         let model_manager_clone = model_manager_cleanup.clone();
         tauri::async_runtime::spawn(async move {
             if let Err(e) = auto_start_selected_models(&app_handle, model_manager_clone).await {
-                eprintln!("Failed to auto-start models on startup: {}", e);
+                logger::error(&format!("Failed to auto-start models on startup: {}", e));
             }
         });
 
-        log_start("LOG_CLEANUP");
-        log_with_context(
-            log::Level::Debug,
-            "Cleaning up old logs",
-            &[("retention_days", "30")],
-        );
+        logger::info("🚀 LOG_CLEANUP STARTING");
+        logger::debug_with("Cleaning up old logs", &[("retention_days", "30")]);
 
         let app_handle_cleanup = app.app_handle().clone();
         tauri::async_runtime::spawn(async move {
             let cleanup_start = Instant::now();
             match commands::clear_old_logs(app_handle_cleanup, 30).await {
                 Ok(deleted) => {
-                    log_complete("LOG_CLEANUP", cleanup_start.elapsed().as_millis() as u64);
-                    log_with_context(
-                        log::Level::Debug,
+                    let duration_ms = cleanup_start.elapsed().as_millis() as u64;
+                    logger::info(&format!("✅ LOG_CLEANUP COMPLETE in {}ms", duration_ms));
+                    logger::debug_with(
                         "Log cleanup complete",
                         &[("files_deleted", &deleted.to_string())],
                     );
@@ -310,12 +267,8 @@ pub fn run() {
                     }
                 }
                 Err(e) => {
-                    log_failed("LOG_CLEANUP", &e);
-                    log_with_context(
-                        log::Level::Debug,
-                        "Log cleanup failed",
-                        &[("retention_days", "30")],
-                    );
+                    logger::error(&format!("❌ LOG_CLEANUP FAILED: {}", e));
+                    logger::debug_with("Log cleanup failed", &[("retention_days", "30")]);
                     log::warn!("Failed to clean up old logs: {}", e);
                 }
             }
@@ -390,7 +343,7 @@ pub fn run() {
             runtime.block_on(async {
                 let mut manager = local_model_manager_cleanup.lock().await;
                 manager.unload_model();
-                println!("Local model stopped on app exit");
+                logger::info("Local model stopped on app exit");
             });
         }
     });

@@ -1,5 +1,6 @@
 use crate::features::audio::enumerate_audio_devices;
 use crate::features::models::LocalModelManager;
+use crate::utils::logger;
 use serde_json::json;
 use std::sync::Arc;
 use tauri::menu::{MenuBuilder, MenuItem, PredefinedMenuItem, SubmenuBuilder};
@@ -352,25 +353,25 @@ fn handle_tray_event(
         }
         "check-updates" => {
             // TODO: Implement update check
-            println!("Check for updates clicked");
+            logger::info("Check for updates clicked");
         }
         "paste-last" => {
-            println!("Paste last transcript clicked");
+            logger::info("Paste last transcript clicked");
             let app_clone = app.clone();
             tauri::async_runtime::spawn(async move {
                 if let Err(e) =
                     crate::features::transcription::paste_last_transcript(app_clone).await
                 {
-                    eprintln!("Failed to paste last transcript: {}", e);
+                    logger::error(&format!("Failed to paste last transcript: {}", e));
                 }
             });
         }
         "mic-auto-detect" => {
             // Set microphone to auto-detect (null)
             if let Err(e) = set_microphone_device(app, None, model_manager_cleanup.clone()) {
-                eprintln!("Failed to set microphone to auto-detect: {}", e);
+                logger::error(&format!("Failed to set microphone to auto-detect: {}", e));
             } else {
-                println!("Microphone set to auto-detect");
+                logger::info("Microphone set to auto-detect");
             }
         }
         event_id if event_id.starts_with("mic-") => {
@@ -379,9 +380,9 @@ fn handle_tray_event(
             if let Err(e) =
                 set_microphone_device(app, Some(device_id.clone()), model_manager_cleanup.clone())
             {
-                eprintln!("Failed to set microphone to {}: {}", device_id, e);
+                logger::error(&format!("Failed to set microphone to {}: {}", device_id, e));
             } else {
-                println!("Microphone set to: {}", device_id);
+                logger::info(&format!("Microphone set to: {}", device_id));
             }
         }
         "shortcuts" => {
@@ -405,7 +406,7 @@ fn handle_tray_event(
         }
         "general-feedback" => {
             // TODO: Open feedback URL
-            println!("General feedback clicked");
+            logger::info("General feedback clicked");
         }
         "quit" => {
             // Cleanup local model before exit
@@ -413,7 +414,7 @@ fn handle_tray_event(
             runtime.block_on(async {
                 let mut manager = model_manager_cleanup.lock().await;
                 manager.unload_model();
-                println!("Local model stopped on app exit");
+                logger::info("Local model stopped on app exit");
             });
             app.exit(0);
         }
@@ -525,7 +526,7 @@ fn handle_menu_bar_event(app: &AppHandle, event_id: &str) {
         }
         "changelog" => {
             // TODO: Open changelog
-            println!("Changelog clicked");
+            logger::info("Changelog clicked");
         }
         _ => {}
     }

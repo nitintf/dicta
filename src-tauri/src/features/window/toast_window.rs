@@ -67,8 +67,7 @@ pub fn setup_toast_window(app: &AppHandle) -> tauri::Result<()> {
         Err(e) => log::error!("🍞 Failed to convert toast to NSPanel: {:?}", e),
     }
 
-    crate::utils::logger::log_with_context(
-        log::Level::Info,
+    crate::utils::logger::info_with(
         "✅ Toast window created and ready",
         &[("x", &toast_x.to_string()), ("y", &toast_y.to_string())],
     );

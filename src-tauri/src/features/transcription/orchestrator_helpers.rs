@@ -121,7 +121,7 @@ pub async fn apply_ai_post_processing(
     )
     .await?;
 
-    println!("Post processing was successful");
+    crate::utils::logger::debug("Post processing was successful");
 
     Ok(PostProcessingResult {
         final_text: post_processed_text.clone(),

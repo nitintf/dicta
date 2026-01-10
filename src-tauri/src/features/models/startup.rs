@@ -6,6 +6,7 @@ use tokio::sync::Mutex;
 
 use super::engines::ModelConfig;
 use super::LocalModelManager;
+use crate::utils::logger;
 
 /// Auto-start selected local models if they're downloaded
 pub async fn auto_start_selected_models(
@@ -64,9 +65,12 @@ pub async fn auto_start_selected_models(
                     if let Err(e) =
                         start_local_model_internal(app, model_manager.clone(), obj, stt_id).await
                     {
-                        eprintln!("Failed to start speech-to-text model: {}", e);
+                        logger::error(&format!("Failed to start speech-to-text model: {}", e));
                     } else {
-                        println!("✅ Auto-started speech-to-text model: {}", model_name);
+                        logger::info(&format!(
+                            "✅ Auto-started speech-to-text model: {}",
+                            model_name
+                        ));
                     }
                 } else {
                     models_to_download.push(model_name.to_string());
@@ -96,7 +100,7 @@ pub async fn auto_start_selected_models(
 
                 if is_downloaded {
                     // Start the model (note: for now we only support one local model at a time)
-                    println!("ℹ️  Post-processing model {} is local and downloaded, but multiple local models not yet supported", model_name);
+                    logger::info(&format!("ℹ️  Post-processing model {} is local and downloaded, but multiple local models not yet supported", model_name));
                 } else {
                     models_to_download.push(model_name.to_string());
                 }
@@ -146,10 +150,10 @@ async fn start_local_model_internal(
         .and_then(|v| v.as_str())
         .unwrap_or(model_id);
 
-    println!(
+    logger::info(&format!(
         "Auto-starting local model: {} (engine: {}) at {}",
         model_name, engine_type, model_path
-    );
+    ));
 
     let mut manager = model_manager.lock().await;
 
