@@ -1,3 +1,7 @@
+## [0.0.2](https://github.com/nitintf/dicta/compare/v0.0.1...v0.0.2) (2026-01-10)
+
+
+
 ## 0.0.1 (2026-01-10)
 
 

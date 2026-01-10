@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Dicta",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "identifier": "com.nitintf.dicta",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -47,15 +47,31 @@
       "pubkey": "your-public-key-here"
     },
     "webview": {
-      "windows": ["main"],
-      "permissions": ["allow-popups", "allow-modals"]
+      "windows": [
+        "main"
+      ],
+      "permissions": [
+        "allow-popups",
+        "allow-modals"
+      ]
     }
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "app", "dmg"],
-    "icon": ["icons/icon.png", "icons/icon.icns", "icons/icon.ico"],
-    "resources": ["../public/main.mp3", "../public/cancel.wav"],
+    "targets": [
+      "nsis",
+      "app",
+      "dmg"
+    ],
+    "icon": [
+      "icons/icon.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": [
+      "../public/main.mp3",
+      "../public/cancel.wav"
+    ],
     "macOS": {
       "minimumSystemVersion": "13.0",
       "entitlements": "./entitlements.plist",
