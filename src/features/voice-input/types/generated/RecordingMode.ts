@@ -3,4 +3,4 @@
 /**
  * Recording mode: Toggle (click to start/stop) or PushToTalk (hold to record)
  */
-export type RecordingMode = "toggle" | "pushtotalk";
+export type RecordingMode = 'toggle' | 'pushtotalk'

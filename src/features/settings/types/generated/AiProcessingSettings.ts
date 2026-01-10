@@ -3,4 +3,7 @@
 /**
  * AI Processing settings
  */
-export type AiProcessingSettings = { enabled: boolean, postProcessingModelId: string | null, };
+export type AiProcessingSettings = {
+  enabled: boolean
+  postProcessingModelId: string | null
+}

@@ -3,4 +3,9 @@
 /**
  * Transcription settings
  */
-export type TranscriptionSettings = { language: string, autoPaste: boolean, autoCopyToClipboard: boolean, speechToTextModelId: string | null, };
+export type TranscriptionSettings = {
+  language: string
+  autoPaste: boolean
+  autoCopyToClipboard: boolean
+  speechToTextModelId: string | null
+}
