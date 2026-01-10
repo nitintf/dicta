@@ -53,7 +53,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis", "app", "dmg"],
     "icon": ["icons/icon.png", "icons/icon.icns", "icons/icon.ico"],
     "resources": ["../public/main.mp3", "../public/cancel.wav"],
     "macOS": {

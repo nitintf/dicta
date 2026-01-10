@@ -426,14 +426,50 @@ build_for_architecture() {
 
     local app_bundle_name
     app_bundle_name=$(basename "$app_bundle_path")
-    local app_tar="${app_dir}/${APP_NAME}_${version}_${arch_name}.app.tar.gz"
+    local app_tar_filename="${APP_NAME}_${version}_${arch_name}.app.tar.gz"
+    local app_tar="${app_dir}/${app_tar_filename}"
 
+    # Use absolute path for tar file to avoid any path issues
+    local app_tar_absolute
+    app_tar_absolute=$(cd "$app_dir" && pwd)/"$app_tar_filename"
+
+    log_step "Archiving ${app_bundle_name} to ${app_tar_filename}..."
+
+    # Check if app bundle exists before archiving
+    if [[ ! -d "$app_bundle_path" ]]; then
+        log_error "Error: App bundle not found: $app_bundle_path"
+        exit 1
+    fi
+
+    # Create tar archive from the app_dir directory
     cd "$app_dir"
-    COPYFILE_DISABLE=1 tar -czf "$app_tar" \
+
+    # Create tar archive with error handling (use absolute path)
+    if ! COPYFILE_DISABLE=1 tar -czf "$app_tar_absolute" \
         --exclude='._*' \
         --exclude='.DS_Store' \
-        "$app_bundle_name"
+        "$app_bundle_name" 2>&1; then
+        log_error "Error: tar command failed to create archive"
+        log_error "Current directory: $(pwd)"
+        log_error "App bundle: $app_bundle_name"
+        log_error "Target file: $app_tar_absolute"
+        cd "$REPO_ROOT"
+        exit 1
+    fi
+
     cd "$REPO_ROOT"
+
+    # Verify the tar file was created
+    if [[ ! -f "$app_tar" ]]; then
+        log_error "Error: Archive file not found after creation: $app_tar"
+        log_error "Expected location: $app_tar"
+        log_error "Absolute path used: $app_tar_absolute"
+        log_error "Files in directory:"
+        ls -la "$app_dir" || true
+        exit 1
+    fi
+
+    log_info "✓ Created archive: $(basename "$app_tar") ($(du -h "$app_tar" | cut -f1))"
 
     # Copy artifacts to output directory
     cp "$dmg_path" "${OUTPUT_DIR}/${APP_NAME}_${version}_${arch_name}.dmg"
