@@ -33,7 +33,7 @@ RELEASE_TYPE=""
 NEW_VERSION=""
 CURRENT_VERSION=""
 OUTPUT_DIR=""
-TEMP_FILES=()
+TEMP_FILES=()  # Initialize as empty array
 VERSION_FILES_MODIFIED=false
 
 # ============================================================================
@@ -60,12 +60,14 @@ log_step() {
 cleanup() {
     local exit_code=$?
 
-    # Clean up temporary files
-    for temp_file in "${TEMP_FILES[@]}"; do
-        if [[ -f "$temp_file" ]]; then
-            rm -f "$temp_file"
-        fi
-    done
+    # Clean up temporary files (safely handle array with set -u)
+    if declare -p TEMP_FILES &>/dev/null && [[ ${#TEMP_FILES[@]} -gt 0 ]]; then
+        for temp_file in "${TEMP_FILES[@]}"; do
+            if [[ -f "$temp_file" ]]; then
+                rm -f "$temp_file"
+            fi
+        done
+    fi
 
     # Revert version changes if build failed and we modified files
     if [[ $exit_code -ne 0 ]] && [[ "$VERSION_FILES_MODIFIED" == true ]] && [[ -n "$CURRENT_VERSION" ]]; then
@@ -292,7 +294,7 @@ create_release_commit_and_tag() {
 
     log_step "Committing and tagging v${version}..."
     cd "$REPO_ROOT"
-    git add package.json src-tauri/Cargo.toml CHANGELOG.md
+    git add package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json CHANGELOG.md
     git commit -m "chore: release v${version}"
     git tag "v${version}"
     git push origin "$MAIN_BRANCH"
