@@ -2,8 +2,9 @@ use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, Host, Stream, StreamConfig};
 use hound::{WavSpec, WavWriter};
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
+use tauri::{AppHandle, Emitter};
 
 /// Audio recorder state
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -38,6 +39,8 @@ pub struct AudioRecorder {
     writer: Arc<Mutex<Option<WavWriter<std::io::BufWriter<std::fs::File>>>>>,
     is_recording: Arc<AtomicBool>,
     config: RecorderConfig,
+    app_handle: Arc<Mutex<Option<AppHandle>>>,
+    last_emit_time: Arc<AtomicU64>,
 }
 
 impl AudioRecorder {
@@ -48,7 +51,14 @@ impl AudioRecorder {
             writer: Arc::new(Mutex::new(None)),
             is_recording: Arc::new(AtomicBool::new(false)),
             config: RecorderConfig::default(),
+            app_handle: Arc::new(Mutex::new(None)),
+            last_emit_time: Arc::new(AtomicU64::new(0)),
         }
+    }
+
+    /// Set the app handle for emitting events
+    pub fn set_app_handle(&mut self, app: AppHandle) {
+        *self.app_handle.lock().unwrap() = Some(app);
     }
 
     /// Get the default input device
@@ -100,12 +110,27 @@ impl AudioRecorder {
             .default_input_config()
             .map_err(|e| format!("Failed to get default input config: {}", e))?;
 
-        let stream_config: StreamConfig = config.into();
+        let stream_config: StreamConfig = config.clone().into();
 
-        // Create WAV writer
+        // IMPORTANT: Use the device's native sample rate instead of hardcoded 16kHz
+        // to avoid sample rate mismatches that cause corrupted audio
+        let device_sample_rate = stream_config.sample_rate;
+        let device_channels = stream_config.channels;
+
+        log::info!(
+            "Device config - Sample rate: {}, Channels: {}",
+            device_sample_rate,
+            device_channels
+        );
+        log::info!(
+            "Using device's native sample rate for WAV file: {} Hz",
+            device_sample_rate
+        );
+
+        // Create WAV writer using device's native sample rate
         let spec = WavSpec {
-            channels: self.config.channels,
-            sample_rate: self.config.sample_rate,
+            channels: device_channels,
+            sample_rate: device_sample_rate,
             bits_per_sample: self.config.bits_per_sample,
             sample_format: hound::SampleFormat::Int,
         };
@@ -119,6 +144,12 @@ impl AudioRecorder {
         // Clone Arc references for the callback
         let writer_clone = Arc::clone(&self.writer);
         let is_recording = Arc::clone(&self.is_recording);
+        let app_handle_clone = Arc::clone(&self.app_handle);
+        let last_emit_time_clone = Arc::clone(&self.last_emit_time);
+
+        // Sample counter for debugging
+        let sample_counter = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let counter_clone = Arc::clone(&sample_counter);
 
         let stream = device
             .build_input_stream(
@@ -128,14 +159,51 @@ impl AudioRecorder {
                         return;
                     }
 
+                    // Calculate RMS level for visualization
+                    let mut sum_squares = 0.0f32;
+                    let mut wrote_samples = 0;
+
                     let mut writer_guard = writer_clone.lock().unwrap();
                     if let Some(ref mut writer) = *writer_guard {
                         for &sample in data.iter() {
+                            sum_squares += sample * sample;
                             let sample_i16 = (sample * i16::MAX as f32) as i16;
-                            let _ = writer.write_sample(sample_i16);
+                            if writer.write_sample(sample_i16).is_ok() {
+                                wrote_samples += 1;
+                            }
+                        }
+                        let total = counter_clone.fetch_add(wrote_samples, Ordering::Relaxed)
+                            + wrote_samples;
+                        // Log every ~1 second worth of samples
+                        if total % (device_sample_rate as usize) < wrote_samples {
+                            log::debug!("Wrote {} total samples so far", total);
                         }
                     } else {
                         log::error!("Writer is None in audio callback - this should not happen!");
+                        return;
+                    }
+                    drop(writer_guard); // Release lock early
+
+                    // Calculate RMS and emit at ~30Hz (every 33ms)
+                    let rms = (sum_squares / data.len() as f32).sqrt();
+                    let level = (rms * 100.0).min(100.0); // Convert to 0-100 scale
+
+                    // Throttle emissions to ~30 per second
+                    let now = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_millis() as u64;
+                    let last_emit = last_emit_time_clone.load(Ordering::Relaxed);
+
+                    if now - last_emit >= 33 {
+                        // ~30 FPS
+                        last_emit_time_clone.store(now, Ordering::Relaxed);
+
+                        if let Ok(app_guard) = app_handle_clone.lock() {
+                            if let Some(app) = app_guard.as_ref() {
+                                let _ = app.emit("audio-level", level);
+                            }
+                        }
                     }
                 },
                 |err| {
@@ -145,14 +213,17 @@ impl AudioRecorder {
             )
             .map_err(|e| format!("Failed to build input stream: {}", e))?;
 
+        // IMPORTANT: Set is_recording BEFORE starting the stream to avoid race condition
+        // where the callback fires before the flag is set
+        self.is_recording.store(true, Ordering::Release);
+        *self.state.lock().unwrap() = RecorderState::Recording;
+
         // Start the stream
         stream
             .play()
             .map_err(|e| format!("Failed to start stream: {}", e))?;
 
-        // Update state
-        self.is_recording.store(true, Ordering::Release);
-        *self.state.lock().unwrap() = RecorderState::Recording;
+        // Store stream
         *self.stream.lock().unwrap() = Some(stream);
 
         log::info!("Recording started");

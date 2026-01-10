@@ -1,7 +1,8 @@
-import { useEffect } from 'react'
+import { useState } from 'react'
 
 import { LiveWaveform } from '@/components/ui/live-waveform'
 import { useAudioRecording } from '@/hooks/use-audio-recording'
+import { useTauriEvent } from '@/hooks/use-tauri-event'
 
 import { CancelButton } from './cancel-button'
 import { StopButton } from './stop-button'
@@ -9,35 +10,18 @@ import { VoiceInputContainer } from './voice-input-container'
 
 export const VoiceInput = () => {
   const recording = useAudioRecording()
+  const [audioLevel, setAudioLevel] = useState<number>(0)
 
   const isTranscribing = recording.state === 'transcribing'
   const isProcessing = recording.state === 'stopping' || isTranscribing
 
-  // Handle escape key to cancel recording (local handler, not global)
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        // Only cancel if we're in an active recording state
-        const activeStates = [
-          'recording',
-          'starting',
-          'stopping',
-          'transcribing',
-        ]
-        if (activeStates.includes(recording.state)) {
-          event.preventDefault()
-          event.stopPropagation()
-          recording.cancelRecording()
-        }
-      }
-    }
+  // Listen for audio levels from backend
+  useTauriEvent<number>('audio-level', event => {
+    setAudioLevel(event.payload)
+  })
 
-    window.addEventListener('keydown', handleKeyDown)
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [recording])
+  // Note: Escape key is now handled globally by the backend shortcut system
+  // See: src-tauri/src/features/shortcuts/manager.rs and recording_handler.rs
 
   return (
     <VoiceInputContainer>
@@ -52,6 +36,7 @@ export const VoiceInput = () => {
         ) : (
           <LiveWaveform
             active={recording.isRecording}
+            audioLevel={audioLevel}
             mode="static"
             barWidth={1.5}
             barGap={1.5}

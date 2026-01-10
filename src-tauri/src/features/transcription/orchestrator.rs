@@ -71,9 +71,24 @@ pub async fn transcribe_and_process(
             });
     let focused_app_name = focused_app.name.clone();
 
-    // Step 3: Check if audio is silent
     if is_audio_silent(&request.audio_data)? {
         println!("Audio is silent, skipping transcription");
+
+        // Clean up the recording folder since audio is silent
+        let recordings_dir = crate::features::recordings::get_recordings_dir(&app)?;
+        let recording_folder = recordings_dir.join(request.timestamp.to_string());
+
+        if recording_folder.exists() {
+            if let Err(e) = std::fs::remove_dir_all(&recording_folder) {
+                log::warn!(
+                    "Failed to cleanup recording folder after silent audio detection: {}",
+                    e
+                );
+            } else {
+                log::info!("Cleaned up recording folder for silent audio");
+            }
+        }
+
         return Ok(None);
     }
 
@@ -200,7 +215,9 @@ pub async fn transcribe_and_process(
         post_processing_model_name,
         post_processing_provider,
         request.language.unwrap_or_else(|| "en".to_string()),
-        request.recording_device.unwrap_or_else(|| "Unknown".to_string()),
+        request
+            .recording_device
+            .unwrap_or_else(|| "Unknown".to_string()),
         focused_app_name,
         app_category.as_str().to_string(),
         ai_processing_enabled,

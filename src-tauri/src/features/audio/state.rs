@@ -47,8 +47,8 @@ impl RecordingState {
             (Stopping, Transcribing) | (Stopping, Idle) | (Stopping, Error) => true,
             // From Transcribing
             (Transcribing, Idle) | (Transcribing, Error) => true,
-            // From Error
-            (Error, Idle) => true,
+            // From Error - allow recovery to Starting or back to Idle
+            (Error, Idle) | (Error, Starting) => true,
             // Same state is always allowed
             (a, b) if a == b => true,
             // All other transitions are invalid

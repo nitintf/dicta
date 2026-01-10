@@ -8,8 +8,7 @@ export type LiveWaveformProps = Omit<
 > & {
   active?: boolean
   processing?: boolean
-  stream?: MediaStream | null
-  deviceId?: string
+  audioLevel?: number // Audio level from backend (0-100)
   barWidth?: number
   barHeight?: number
   barGap?: number
@@ -19,21 +18,13 @@ export type LiveWaveformProps = Omit<
   fadeWidth?: number
   height?: string | number
   sensitivity?: number
-  smoothingTimeConstant?: number
-  fftSize?: number
-  historySize?: number
-  updateRate?: number
   mode?: 'scrolling' | 'static'
-  onError?: (error: Error) => void
-  onStreamReady?: (stream: MediaStream) => void
-  onStreamEnd?: () => void
 }
 
 export const LiveWaveform = ({
   active = false,
   processing = false,
-  stream: externalStream,
-  deviceId,
+  audioLevel,
   barWidth = 3,
   barGap = 1,
   barRadius = 1.5,
@@ -43,29 +34,17 @@ export const LiveWaveform = ({
   barHeight: baseBarHeight = 4,
   height = 64,
   sensitivity = 1,
-  smoothingTimeConstant = 0.8,
-  fftSize = 256,
-  historySize = 60,
-  updateRate = 30,
   mode = 'static',
-  onError,
-  onStreamReady,
-  onStreamEnd,
   className,
   ...props
 }: LiveWaveformProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const historyRef = useRef<number[]>([])
-  const analyserRef = useRef<AnalyserNode | null>(null)
-  const audioContextRef = useRef<AudioContext | null>(null)
-  const streamRef = useRef<MediaStream | null>(null)
-  const animationRef = useRef<number>(0)
-  const lastUpdateRef = useRef<number>(0)
   const processingAnimationRef = useRef<number | null>(null)
   const lastActiveDataRef = useRef<number[]>([])
   const transitionProgressRef = useRef(0)
   const staticBarsRef = useRef<number[]>([])
+  const targetBarsRef = useRef<number[]>([]) // Target values for smooth interpolation
   const needsRedrawRef = useRef(true)
   const gradientCacheRef = useRef<CanvasGradient | null>(null)
   const lastWidthRef = useRef(0)
@@ -101,6 +80,7 @@ export const LiveWaveform = ({
     return () => resizeObserver.disconnect()
   }, [])
 
+  // Handle processing animation (when not active)
   useEffect(() => {
     if (processing && !active) {
       let time = 0
@@ -119,71 +99,37 @@ export const LiveWaveform = ({
             (barWidth + barGap)
         )
 
-        if (mode === 'static') {
-          const halfCount = Math.floor(barCount / 2)
+        const halfCount = Math.floor(barCount / 2)
 
-          for (let i = 0; i < barCount; i++) {
-            const normalizedPosition = (i - halfCount) / halfCount
-            const centerWeight = 1 - Math.abs(normalizedPosition) * 0.4
+        for (let i = 0; i < barCount; i++) {
+          const normalizedPosition = (i - halfCount) / halfCount
+          const centerWeight = 1 - Math.abs(normalizedPosition) * 0.4
 
-            const wave1 = Math.sin(time * 1.5 + normalizedPosition * 3) * 0.25
-            const wave2 = Math.sin(time * 0.8 - normalizedPosition * 2) * 0.2
-            const wave3 = Math.cos(time * 2 + normalizedPosition) * 0.15
-            const combinedWave = wave1 + wave2 + wave3
-            const processingValue = (0.2 + combinedWave) * centerWeight
+          const wave1 = Math.sin(time * 1.5 + normalizedPosition * 3) * 0.25
+          const wave2 = Math.sin(time * 0.8 - normalizedPosition * 2) * 0.2
+          const wave3 = Math.cos(time * 2 + normalizedPosition) * 0.15
+          const combinedWave = wave1 + wave2 + wave3
+          const processingValue = (0.2 + combinedWave) * centerWeight
 
-            let finalValue = processingValue
-            if (
-              lastActiveDataRef.current.length > 0 &&
-              transitionProgressRef.current < 1
-            ) {
-              const lastDataIndex = Math.min(
-                i,
-                lastActiveDataRef.current.length - 1
-              )
-              const lastValue = lastActiveDataRef.current[lastDataIndex] || 0
-              finalValue =
-                lastValue * (1 - transitionProgressRef.current) +
-                processingValue * transitionProgressRef.current
-            }
-
-            processingData.push(Math.max(0.05, Math.min(1, finalValue)))
+          let finalValue = processingValue
+          if (
+            lastActiveDataRef.current.length > 0 &&
+            transitionProgressRef.current < 1
+          ) {
+            const lastDataIndex = Math.min(
+              i,
+              lastActiveDataRef.current.length - 1
+            )
+            const lastValue = lastActiveDataRef.current[lastDataIndex] || 0
+            finalValue =
+              lastValue * (1 - transitionProgressRef.current) +
+              processingValue * transitionProgressRef.current
           }
-        } else {
-          for (let i = 0; i < barCount; i++) {
-            const normalizedPosition = (i - barCount / 2) / (barCount / 2)
-            const centerWeight = 1 - Math.abs(normalizedPosition) * 0.4
 
-            const wave1 = Math.sin(time * 1.5 + i * 0.15) * 0.25
-            const wave2 = Math.sin(time * 0.8 - i * 0.1) * 0.2
-            const wave3 = Math.cos(time * 2 + i * 0.05) * 0.15
-            const combinedWave = wave1 + wave2 + wave3
-            const processingValue = (0.2 + combinedWave) * centerWeight
-
-            let finalValue = processingValue
-            if (
-              lastActiveDataRef.current.length > 0 &&
-              transitionProgressRef.current < 1
-            ) {
-              const lastDataIndex = Math.floor(
-                (i / barCount) * lastActiveDataRef.current.length
-              )
-              const lastValue = lastActiveDataRef.current[lastDataIndex] || 0
-              finalValue =
-                lastValue * (1 - transitionProgressRef.current) +
-                processingValue * transitionProgressRef.current
-            }
-
-            processingData.push(Math.max(0.05, Math.min(1, finalValue)))
-          }
+          processingData.push(Math.max(0.05, Math.min(1, finalValue)))
         }
 
-        if (mode === 'static') {
-          staticBarsRef.current = processingData
-        } else {
-          historyRef.current = processingData
-        }
-
+        staticBarsRef.current = processingData
         needsRedrawRef.current = true
         processingAnimationRef.current =
           requestAnimationFrame(animateProcessing)
@@ -197,156 +143,70 @@ export const LiveWaveform = ({
         }
       }
     } else if (!active && !processing) {
-      const hasData =
-        mode === 'static'
-          ? staticBarsRef.current.length > 0
-          : historyRef.current.length > 0
+      const hasData = staticBarsRef.current.length > 0
 
       if (hasData) {
         let fadeProgress = 0
         const fadeToIdle = () => {
           fadeProgress += 0.03
           if (fadeProgress < 1) {
-            if (mode === 'static') {
-              staticBarsRef.current = staticBarsRef.current.map(
-                value => value * (1 - fadeProgress)
-              )
-            } else {
-              historyRef.current = historyRef.current.map(
-                value => value * (1 - fadeProgress)
-              )
-            }
+            staticBarsRef.current = staticBarsRef.current.map(
+              value => value * (1 - fadeProgress)
+            )
             needsRedrawRef.current = true
             requestAnimationFrame(fadeToIdle)
           } else {
-            if (mode === 'static') {
-              staticBarsRef.current = []
-            } else {
-              historyRef.current = []
-            }
+            staticBarsRef.current = []
           }
         }
         fadeToIdle()
       }
     }
-  }, [processing, active, barWidth, barGap, mode])
+  }, [processing, active, barWidth, barGap])
 
-  // Handle microphone setup and teardown
+  // Handle backend audio level updates
   useEffect(() => {
-    // If external stream is provided, use it; otherwise create one if active
-    const getAudioStream = async () => {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-      })
-      return stream
-    }
-
-    const streamToUse = externalStream || (active ? getAudioStream() : null)
-
-    if (!active || !streamToUse) {
-      // Clean up audio context and analyser, but don't stop external stream
-      if (!externalStream && streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop())
-        streamRef.current = null
-        onStreamEnd?.()
-      }
-      if (
-        audioContextRef.current &&
-        audioContextRef.current.state !== 'closed'
-      ) {
-        audioContextRef.current.close()
-        audioContextRef.current = null
-      }
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current)
-        animationRef.current = 0
-      }
-      analyserRef.current = null
+    if (!active || audioLevel === undefined) {
       return
     }
 
-    const setupAudio = async () => {
-      try {
-        // Use external stream if provided, otherwise create one
-        let stream: MediaStream
-        if (externalStream) {
-          stream = externalStream
-          streamRef.current = stream
-        } else {
-          stream = await navigator.mediaDevices.getUserMedia({
-            audio: deviceId
-              ? {
-                  deviceId: { exact: deviceId },
-                  echoCancellation: true,
-                  noiseSuppression: true,
-                  autoGainControl: true,
-                }
-              : {
-                  echoCancellation: true,
-                  noiseSuppression: true,
-                  autoGainControl: true,
-                },
-          })
-          streamRef.current = stream
-          onStreamReady?.(stream)
-        }
+    const normalizedLevel = Math.min(1, Math.max(0, audioLevel / 100))
 
-        const AudioContextConstructor =
-          window.AudioContext ||
-          (window as unknown as { webkitAudioContext: typeof AudioContext })
-            .webkitAudioContext
-        const audioContext = new AudioContextConstructor()
-        const analyser = audioContext.createAnalyser()
-        analyser.fftSize = fftSize
-        analyser.smoothingTimeConstant = smoothingTimeConstant
+    // For static mode, create symmetric bars based on audio level with variation
+    const barCount = Math.floor(
+      (containerRef.current?.getBoundingClientRect().width || 200) /
+        (barWidth + barGap)
+    )
+    const halfCount = Math.floor(barCount / 2)
+    const newBars: number[] = []
 
-        const source = audioContext.createMediaStreamSource(stream)
-        source.connect(analyser)
-
-        audioContextRef.current = audioContext
-        analyserRef.current = analyser
-
-        // Clear history when starting
-        historyRef.current = []
-      } catch (error) {
-        onError?.(error as Error)
-      }
+    // Initialize staticBarsRef if empty
+    if (staticBarsRef.current.length === 0) {
+      staticBarsRef.current = new Array(barCount).fill(0.02)
     }
 
-    setupAudio()
+    for (let i = 0; i < barCount; i++) {
+      const normalizedPosition = Math.abs((i - halfCount) / halfCount)
+      // Reduced center bias from 0.6 to 0.3 so edge bars participate more
+      const centerWeight = 1 - normalizedPosition * 0.3
 
-    return () => {
-      // Only stop stream if we created it (not external)
-      if (!externalStream && streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop())
-        streamRef.current = null
-        onStreamEnd?.()
-      }
-      if (
-        audioContextRef.current &&
-        audioContextRef.current.state !== 'closed'
-      ) {
-        audioContextRef.current.close()
-        audioContextRef.current = null
-      }
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current)
-        animationRef.current = 0
-      }
-      analyserRef.current = null
+      // Add slight random variation per bar for more organic feel
+      const variation = 0.9 + Math.random() * 0.2 // 0.9 to 1.1
+
+      // Apply sensitivity boost with variation
+      const baseValue =
+        normalizedLevel * centerWeight * sensitivity * 8 * variation
+      const value = Math.max(0.02, Math.min(1, baseValue))
+
+      newBars.push(value)
     }
-  }, [
-    active,
-    externalStream,
-    deviceId,
-    fftSize,
-    smoothingTimeConstant,
-    onError,
-    onStreamReady,
-    onStreamEnd,
-  ])
 
-  // Animation loop
+    // Set target bars for smooth interpolation
+    targetBarsRef.current = newBars
+    needsRedrawRef.current = true
+  }, [audioLevel, active, mode, barWidth, barGap, sensitivity])
+
+  // Animation loop for rendering
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -356,78 +216,24 @@ export const LiveWaveform = ({
 
     let rafId: number
 
-    const animate = (currentTime: number) => {
-      // Render waveform
+    const animate = () => {
       const rect = canvas.getBoundingClientRect()
 
-      // Update audio data if active
-      if (active && currentTime - lastUpdateRef.current > updateRate) {
-        lastUpdateRef.current = currentTime
+      // Smooth interpolation towards target values
+      if (active && targetBarsRef.current.length > 0) {
+        const smoothingFactor = 0.15 // Lower = smoother but slower, higher = faster but jerkier
 
-        if (analyserRef.current) {
-          const dataArray = new Uint8Array(
-            analyserRef.current.frequencyBinCount
-          )
-          analyserRef.current.getByteFrequencyData(dataArray)
+        // Interpolate each bar towards its target
+        for (let i = 0; i < staticBarsRef.current.length; i++) {
+          const current = staticBarsRef.current[i] || 0.02
+          const target = targetBarsRef.current[i] || 0.02
 
-          if (mode === 'static') {
-            // For static mode, update bars in place
-            const startFreq = Math.floor(dataArray.length * 0.05)
-            const endFreq = Math.floor(dataArray.length * 0.4)
-            const relevantData = dataArray.slice(startFreq, endFreq)
-
-            const barCount = Math.floor(rect.width / (barWidth + barGap))
-            const halfCount = Math.floor(barCount / 2)
-            const newBars: number[] = []
-
-            // Mirror the data for symmetric display
-            for (let i = halfCount - 1; i >= 0; i--) {
-              const dataIndex = Math.floor(
-                (i / halfCount) * relevantData.length
-              )
-              const value = Math.min(
-                1,
-                (relevantData[dataIndex] / 255) * sensitivity
-              )
-              newBars.push(Math.max(0.05, value))
-            }
-
-            for (let i = 0; i < halfCount; i++) {
-              const dataIndex = Math.floor(
-                (i / halfCount) * relevantData.length
-              )
-              const value = Math.min(
-                1,
-                (relevantData[dataIndex] / 255) * sensitivity
-              )
-              newBars.push(Math.max(0.05, value))
-            }
-
-            staticBarsRef.current = newBars
-            lastActiveDataRef.current = newBars
-          } else {
-            // Scrolling mode - original behavior
-            let sum = 0
-            const startFreq = Math.floor(dataArray.length * 0.05)
-            const endFreq = Math.floor(dataArray.length * 0.4)
-            const relevantData = dataArray.slice(startFreq, endFreq)
-
-            for (let i = 0; i < relevantData.length; i++) {
-              sum += relevantData[i]
-            }
-            const average = (sum / relevantData.length / 255) * sensitivity
-
-            // Add to history
-            historyRef.current.push(Math.min(1, Math.max(0.05, average)))
-            lastActiveDataRef.current = [...historyRef.current]
-
-            // Maintain history size
-            if (historyRef.current.length > historySize) {
-              historyRef.current.shift()
-            }
-          }
-          needsRedrawRef.current = true
+          // Lerp: current + (target - current) * smoothingFactor
+          staticBarsRef.current[i] =
+            current + (target - current) * smoothingFactor
         }
+
+        needsRedrawRef.current = true
       }
 
       // Only redraw if needed
@@ -436,7 +242,10 @@ export const LiveWaveform = ({
         return
       }
 
-      needsRedrawRef.current = active
+      if (active) {
+        needsRedrawRef.current = true // Keep redrawing while active for smooth animation
+      }
+
       ctx.clearRect(0, 0, rect.width, rect.height)
 
       const computedBarColor =
@@ -452,53 +261,30 @@ export const LiveWaveform = ({
       const barCount = Math.floor(rect.width / step)
       const centerY = rect.height / 2
 
-      // Draw bars based on mode
-      if (mode === 'static') {
-        // Static mode - bars in fixed positions
-        const dataToRender = processing
+      // Draw bars
+      const dataToRender = processing
+        ? staticBarsRef.current
+        : active
           ? staticBarsRef.current
-          : active
+          : staticBarsRef.current.length > 0
             ? staticBarsRef.current
-            : staticBarsRef.current.length > 0
-              ? staticBarsRef.current
-              : []
+            : []
 
-        for (let i = 0; i < barCount && i < dataToRender.length; i++) {
-          const value = dataToRender[i] || 0.1
-          const x = i * step
-          const barHeight = Math.max(baseBarHeight, value * rect.height * 0.8)
-          const y = centerY - barHeight / 2
+      for (let i = 0; i < barCount && i < dataToRender.length; i++) {
+        const value = dataToRender[i] || 0.1
+        const x = i * step
+        const barHeight = Math.max(baseBarHeight, value * rect.height * 0.8)
+        const y = centerY - barHeight / 2
 
-          ctx.fillStyle = computedBarColor
-          ctx.globalAlpha = 0.4 + value * 0.6
+        ctx.fillStyle = computedBarColor
+        ctx.globalAlpha = 0.4 + value * 0.6
 
-          if (barRadius > 0) {
-            ctx.beginPath()
-            ctx.roundRect(x, y, barWidth, barHeight, barRadius)
-            ctx.fill()
-          } else {
-            ctx.fillRect(x, y, barWidth, barHeight)
-          }
-        }
-      } else {
-        // Scrolling mode - original behavior
-        for (let i = 0; i < barCount && i < historyRef.current.length; i++) {
-          const dataIndex = historyRef.current.length - 1 - i
-          const value = historyRef.current[dataIndex] || 0.1
-          const x = rect.width - (i + 1) * step
-          const barHeight = Math.max(baseBarHeight, value * rect.height * 0.8)
-          const y = centerY - barHeight / 2
-
-          ctx.fillStyle = computedBarColor
-          ctx.globalAlpha = 0.4 + value * 0.6
-
-          if (barRadius > 0) {
-            ctx.beginPath()
-            ctx.roundRect(x, y, barWidth, barHeight, barRadius)
-            ctx.fill()
-          } else {
-            ctx.fillRect(x, y, barWidth, barHeight)
-          }
+        if (barRadius > 0) {
+          ctx.beginPath()
+          ctx.roundRect(x, y, barWidth, barHeight, barRadius)
+          ctx.fill()
+        } else {
+          ctx.fillRect(x, y, barWidth, barHeight)
         }
       }
 
@@ -545,8 +331,6 @@ export const LiveWaveform = ({
     active,
     processing,
     sensitivity,
-    updateRate,
-    historySize,
     barWidth,
     baseBarHeight,
     barGap,

@@ -120,7 +120,7 @@ impl WhisperEngine {
         Ok(full_text.trim().to_string())
     }
 
-    /// Convert WAV audio bytes to f32 samples
+    /// Convert WAV audio bytes to f32 samples and resample to 16kHz for Whisper
     fn convert_audio_to_samples(audio_data: Vec<u8>) -> Result<Vec<f32>, String> {
         use hound::WavReader;
         use std::io::Cursor;
@@ -130,9 +130,17 @@ impl WhisperEngine {
             WavReader::new(cursor).map_err(|e| format!("Failed to parse WAV audio: {}", e))?;
 
         let spec = reader.spec();
+        let input_sample_rate = spec.sample_rate;
+        let channels = spec.channels as usize;
+
+        log::info!(
+            "Input audio: {} Hz, {} channel(s)",
+            input_sample_rate,
+            channels
+        );
 
         // Read all samples and convert to f32
-        let samples: Vec<f32> = match spec.sample_format {
+        let mut samples: Vec<f32> = match spec.sample_format {
             hound::SampleFormat::Float => reader
                 .samples::<f32>()
                 .collect::<Result<Vec<_>, _>>()
@@ -148,7 +156,81 @@ impl WhisperEngine {
             }
         };
 
+        // If stereo, convert to mono by averaging channels
+        if channels == 2 {
+            log::info!("Converting stereo to mono");
+            samples = samples
+                .chunks(2)
+                .map(|chunk| (chunk[0] + chunk[1]) / 2.0)
+                .collect();
+        } else if channels > 2 {
+            return Err(format!(
+                "Unsupported channel count: {}. Only mono and stereo are supported.",
+                channels
+            ));
+        }
+
+        // Whisper expects 16kHz audio - resample if necessary
+        const TARGET_SAMPLE_RATE: u32 = 16000;
+        if input_sample_rate != TARGET_SAMPLE_RATE {
+            log::info!(
+                "Resampling from {} Hz to {} Hz",
+                input_sample_rate,
+                TARGET_SAMPLE_RATE
+            );
+            samples = Self::resample_audio(samples, input_sample_rate, TARGET_SAMPLE_RATE)?;
+            log::info!("Resampling complete: {} samples", samples.len());
+        }
+
         Ok(samples)
+    }
+
+    /// Resample audio from one sample rate to another
+    fn resample_audio(
+        input: Vec<f32>,
+        input_rate: u32,
+        output_rate: u32,
+    ) -> Result<Vec<f32>, String> {
+        use rubato::{
+            Resampler, SincFixedIn, SincInterpolationParameters, SincInterpolationType,
+            WindowFunction,
+        };
+
+        if input.is_empty() {
+            return Ok(input);
+        }
+
+        // Calculate resampling ratio
+        let resample_ratio = output_rate as f64 / input_rate as f64;
+
+        // Create resampler with high quality settings
+        let params = SincInterpolationParameters {
+            sinc_len: 256,
+            f_cutoff: 0.95,
+            interpolation: SincInterpolationType::Linear,
+            oversampling_factor: 256,
+            window: WindowFunction::BlackmanHarris2,
+        };
+
+        let mut resampler = SincFixedIn::<f32>::new(
+            resample_ratio,
+            2.0,
+            params,
+            input.len(),
+            1, // 1 channel (mono)
+        )
+        .map_err(|e| format!("Failed to create resampler: {}", e))?;
+
+        // Rubato expects Vec<Vec<f32>> where outer vec is channels
+        let input_frames = vec![input];
+
+        // Perform resampling
+        let output_frames = resampler
+            .process(&input_frames, None)
+            .map_err(|e| format!("Resampling failed: {}", e))?;
+
+        // Extract mono channel
+        Ok(output_frames[0].clone())
     }
 }
 

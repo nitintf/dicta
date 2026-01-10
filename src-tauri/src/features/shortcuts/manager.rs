@@ -10,6 +10,7 @@ pub struct ShortcutManager {
     pub voice_input_shortcut: Arc<Mutex<Option<Shortcut>>>,
     pub push_to_talk_shortcut: Arc<Mutex<Option<Shortcut>>>,
     pub paste_shortcut: Arc<Mutex<Option<Shortcut>>>,
+    pub escape_shortcut: Arc<Mutex<Option<Shortcut>>>,
     pub shortcuts_enabled: Arc<Mutex<bool>>,
 }
 
@@ -19,6 +20,7 @@ impl ShortcutManager {
             voice_input_shortcut: Arc::new(Mutex::new(None)),
             push_to_talk_shortcut: Arc::new(Mutex::new(None)),
             paste_shortcut: Arc::new(Mutex::new(None)),
+            escape_shortcut: Arc::new(Mutex::new(None)),
             shortcuts_enabled: Arc::new(Mutex::new(true)),
         }
     }
@@ -41,12 +43,16 @@ pub fn register_voice_input_shortcut(app: &App) -> Result<()> {
         Code::KeyV,
     ));
 
+    // Escape key for canceling recording
+    let escape_shortcut = Shortcut::new(None, Code::Escape);
+
     app.handle().plugin(
         tauri_plugin_global_shortcut::Builder::new()
             .with_shortcuts([
                 voice_shortcut.clone(),
                 ptt_shortcut.clone(),
                 paste_shortcut.clone(),
+                escape_shortcut.clone(),
             ])
             .expect("Failed to register shortcut")
             .with_handler(move |app, shortcut, event| {
@@ -56,6 +62,8 @@ pub fn register_voice_input_shortcut(app: &App) -> Result<()> {
                     handle_ptt_shortcut(app, shortcut, event);
                 } else if shortcut.id() == paste_shortcut.id() {
                     handle_paste_shortcut(app, shortcut, event);
+                } else if shortcut.id() == escape_shortcut.id() {
+                    handle_escape_shortcut(app, shortcut, event);
                 }
             })
             .build(),
@@ -71,6 +79,9 @@ pub fn register_voice_input_shortcut(app: &App) -> Result<()> {
     }
     if let Ok(mut current) = shortcut_state.paste_shortcut.lock() {
         *current = Some(paste_shortcut);
+    }
+    if let Ok(mut current) = shortcut_state.escape_shortcut.lock() {
+        *current = Some(escape_shortcut);
     }
 
     Ok(())
@@ -141,6 +152,24 @@ fn handle_ptt_shortcut(app: &tauri::AppHandle, shortcut: &Shortcut, event: Short
                 .await
             {
                 log::error!("Failed to handle PTT shortcut: {}", e);
+            }
+        });
+    }
+}
+
+fn handle_escape_shortcut(app: &tauri::AppHandle, shortcut: &Shortcut, event: ShortcutEvent) {
+    // Only handle key press (not release) for Escape
+    if event.state == ShortcutState::Pressed && event.id == shortcut.id() {
+        log::info!("Escape shortcut triggered");
+
+        let handler =
+            app.state::<std::sync::Arc<crate::features::shortcuts::RecordingShortcutHandler>>();
+        let handler_clone = handler.inner().clone();
+        let app_clone = app.clone();
+
+        tauri::async_runtime::spawn(async move {
+            if let Err(e) = handler_clone.handle_escape_shortcut(&app_clone).await {
+                log::error!("Failed to handle escape shortcut: {}", e);
             }
         });
     }
@@ -281,6 +310,13 @@ pub async fn disable_global_shortcuts(
         }
     }
 
+    // Unregister escape shortcut
+    if let Ok(mut escape_shortcut) = shortcut_state.escape_shortcut.lock() {
+        if let Some(shortcut) = escape_shortcut.take() {
+            let _ = app.global_shortcut().unregister(shortcut);
+        }
+    }
+
     // Set shortcuts as disabled
     if let Ok(mut enabled) = shortcut_state.shortcuts_enabled.lock() {
         *enabled = false;
@@ -335,6 +371,19 @@ pub async fn enable_global_shortcuts(
         if let Ok(mut current) = shortcut_state.paste_shortcut.lock() {
             *current = Some(shortcut_clone);
         }
+    }
+
+    // Re-register Escape shortcut
+    let escape_shortcut = Shortcut::new(None, Code::Escape);
+    let escape_clone = escape_shortcut.clone();
+    app.global_shortcut()
+        .on_shortcut(escape_shortcut, move |app, shortcut, event| {
+            handle_escape_shortcut(app, shortcut, event);
+        })
+        .map_err(|e| format!("Failed to register escape shortcut: {}", e))?;
+
+    if let Ok(mut current) = shortcut_state.escape_shortcut.lock() {
+        *current = Some(escape_clone);
     }
 
     println!("All global shortcuts enabled");

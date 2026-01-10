@@ -37,6 +37,18 @@ pub async fn start_recording(
         });
     }
 
+    // Check if a speech-to-text model is selected and downloaded
+    if let Err(e) = check_model_available(&app) {
+        log::warn!("Model not available: {}", e);
+        log::info!("Skipping recording - model not downloaded or selected");
+        return Ok(RecordingResponse {
+            success: false,
+            state: state_manager.get_state(),
+            error: Some(e),
+            file_path: None,
+        });
+    }
+
     let store = app
         .store("settings")
         .map_err(|e| format!("Failed to get settings: {}", e))?;
@@ -84,6 +96,9 @@ pub async fn start_recording(
         .lock()
         .map_err(|e| format!("Failed to lock recorder: {}", e))?;
 
+    // Set app handle for emitting audio levels
+    recorder_guard.set_app_handle(app.clone());
+
     match recorder_guard.start_recording(&file_path, device_id) {
         Ok(_) => {
             state_manager
@@ -115,7 +130,10 @@ pub async fn start_recording(
             if let Some(parent) = file_path.parent() {
                 if parent.exists() {
                     if let Err(cleanup_err) = std::fs::remove_dir_all(parent) {
-                        log::warn!("Failed to cleanup recording folder after error: {}", cleanup_err);
+                        log::warn!(
+                            "Failed to cleanup recording folder after error: {}",
+                            cleanup_err
+                        );
                     } else {
                         log::info!("Cleaned up recording folder after recording failure");
                     }
@@ -274,14 +292,18 @@ pub async fn stop_recording(
                                     if let Err(cleanup_err) = std::fs::remove_dir_all(parent) {
                                         log::warn!("Failed to cleanup recording folder after read error: {}", cleanup_err);
                                     } else {
-                                        log::info!("Cleaned up recording folder after read failure");
+                                        log::info!(
+                                            "Cleaned up recording folder after read failure"
+                                        );
                                     }
                                 }
                             }
 
                             state_manager_clone.force_set_state(RecordingState::Error);
-                            state_manager_clone.set_error(Some(format!("Failed to read audio file: {}", e)));
-                            let _ = app_clone.emit("recording-state-changed", RecordingState::Error);
+                            state_manager_clone
+                                .set_error(Some(format!("Failed to read audio file: {}", e)));
+                            let _ =
+                                app_clone.emit("recording-state-changed", RecordingState::Error);
                         }
                     }
 
@@ -320,7 +342,10 @@ pub async fn stop_recording(
                 if let Some(parent) = audio_path.parent() {
                     if parent.exists() {
                         if let Err(cleanup_err) = std::fs::remove_dir_all(parent) {
-                            log::warn!("Failed to cleanup recording folder after stop error: {}", cleanup_err);
+                            log::warn!(
+                                "Failed to cleanup recording folder after stop error: {}",
+                                cleanup_err
+                            );
                         } else {
                             log::info!("Cleaned up recording folder after stop failure");
                         }
@@ -469,6 +494,70 @@ pub fn get_recording_mode_from_settings(app: &AppHandle) -> RecordingMode {
         "pushtotalk" => RecordingMode::PushToTalk,
         _ => RecordingMode::Toggle,
     }
+}
+
+/// Check if a speech-to-text model is selected and available for use
+fn check_model_available(app: &AppHandle) -> Result<(), String> {
+    // Get settings to find selected model
+    let settings_store = app
+        .store("settings")
+        .map_err(|e| format!("Failed to get settings store: {}", e))?;
+
+    let settings = settings_store
+        .get("settings")
+        .ok_or("No settings found in store")?;
+
+    // Get selected model ID
+    let selected_model_id = settings
+        .get("transcription")
+        .and_then(|t| t.get("speechToTextModelId"))
+        .and_then(|v| v.as_str())
+        .ok_or("No speech-to-text model selected. Please select a model in settings.")?;
+
+    // Get models store to check if model exists and is downloaded
+    let models_store = app
+        .store("models.json")
+        .map_err(|e| format!("Failed to get models store: {}", e))?;
+
+    let models_value = models_store
+        .get("models")
+        .ok_or("No models found in store")?;
+
+    let models = models_value.as_array().ok_or("Models is not an array")?;
+
+    // Find the selected model
+    for model_value in models {
+        let model = model_value.as_object().ok_or("Model is not an object")?;
+
+        let id = model.get("id").and_then(|v| v.as_str()).unwrap_or("");
+
+        if id == selected_model_id {
+            let provider = model.get("provider").and_then(|v| v.as_str()).unwrap_or("");
+
+            // For local models, check if downloaded
+            if provider == "local-whisper" {
+                let is_downloaded = model
+                    .get("isDownloaded")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+
+                if !is_downloaded {
+                    return Err(format!(
+                        "Model '{}' is not downloaded. Please download it in the Models page.",
+                        id
+                    ));
+                }
+            }
+
+            // Model found and available
+            return Ok(());
+        }
+    }
+
+    Err(format!(
+        "Selected model '{}' not found in models store",
+        selected_model_id
+    ))
 }
 
 #[cfg(test)]
