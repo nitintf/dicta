@@ -43,7 +43,7 @@ fn get_sound_path(filename: &str) -> Result<PathBuf, String> {
 
 #[cfg(target_os = "macos")]
 pub fn play_sound(filename: &str) -> Result<(), String> {
-    play_sound_with_volume(filename, 0.3)
+    play_sound_with_volume(filename, 0.03)
 }
 
 #[cfg(target_os = "macos")]
@@ -73,7 +73,7 @@ pub fn play_sound_with_volume(filename: &str, volume: f32) -> Result<(), String>
 
 #[cfg(target_os = "windows")]
 pub fn play_sound(filename: &str) -> Result<(), String> {
-    play_sound_with_volume(filename, 0.3)
+    play_sound_with_volume(filename, 0.03)
 }
 
 #[cfg(target_os = "windows")]
