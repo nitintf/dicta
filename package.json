@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "lint": "eslint src/**/*.{ts,tsx}",
+    "typecheck": "tsc --noEmit",
     "lint:fix": "eslint src/**/*.{ts,tsx} --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,json,md}\" --ignore-path .prettierignore",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,json,md}\"",
