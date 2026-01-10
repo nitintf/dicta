@@ -1,6 +1,6 @@
 use super::player::{play_error_sound, play_recording_start_sound, play_recording_stop_sound};
 use super::recorder::AudioRecorder;
-use super::state::{RecordingMode, RecordingState, RecordingStateManager};
+use super::state::{RecordingState, RecordingStateManager};
 use crate::features::recordings::get_recordings_dir;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
@@ -112,6 +112,26 @@ pub async fn start_recording(
                 // Don't steal focus - keep user focused on their active application
             }
 
+            // Register Escape shortcut for canceling recording
+            if app
+                .try_state::<crate::features::shortcuts::ShortcutManager>()
+                .is_some()
+            {
+                let app_clone = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(e) = crate::features::shortcuts::register_escape_shortcut(
+                        app_clone.clone(),
+                        app_clone.state(),
+                    )
+                    .await
+                    {
+                        log::error!("Failed to register Escape shortcut: {}", e);
+                    }
+                });
+            } else {
+                log::warn!("ShortcutManager not available, cannot register Escape");
+            }
+
             log::info!("Recording started successfully");
             Ok(RecordingResponse {
                 success: true,
@@ -195,6 +215,26 @@ pub async fn stop_recording(
 
     // Emit state change
     let _ = app.emit("recording-state-changed", RecordingState::Stopping);
+
+    // Unregister Escape shortcut
+    if app
+        .try_state::<crate::features::shortcuts::ShortcutManager>()
+        .is_some()
+    {
+        let app_clone = app.clone();
+        tauri::async_runtime::spawn(async move {
+            if let Err(e) = crate::features::shortcuts::unregister_escape_shortcut(
+                app_clone.clone(),
+                app_clone.state(),
+            )
+            .await
+            {
+                log::error!("Failed to unregister Escape shortcut: {}", e);
+            }
+        });
+    } else {
+        log::warn!("ShortcutManager not available, cannot unregister Escape");
+    }
 
     // Stop recording
     let mut recorder_guard = recorder
@@ -362,6 +402,26 @@ pub async fn stop_recording(
 
             let _ = app.emit("recording-state-changed", RecordingState::Error);
 
+            // Unregister Escape shortcut on error
+            if app
+                .try_state::<crate::features::shortcuts::ShortcutManager>()
+                .is_some()
+            {
+                let app_clone = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(err) = crate::features::shortcuts::unregister_escape_shortcut(
+                        app_clone.clone(),
+                        app_clone.state(),
+                    )
+                    .await
+                    {
+                        log::error!("Failed to unregister Escape shortcut on error: {}", err);
+                    }
+                });
+            } else {
+                log::warn!("ShortcutManager not available, cannot unregister Escape on error");
+            }
+
             if let Some(window) = app.get_webview_window("voice-input") {
                 let _ = window.hide();
             }
@@ -426,6 +486,26 @@ pub async fn cancel_recording(
 
     let _ = app.emit("recording-state-changed", RecordingState::Idle);
 
+    // Unregister Escape shortcut
+    if app
+        .try_state::<crate::features::shortcuts::ShortcutManager>()
+        .is_some()
+    {
+        let app_clone = app.clone();
+        tauri::async_runtime::spawn(async move {
+            if let Err(e) = crate::features::shortcuts::unregister_escape_shortcut(
+                app_clone.clone(),
+                app_clone.state(),
+            )
+            .await
+            {
+                log::error!("Failed to unregister Escape shortcut: {}", e);
+            }
+        });
+    } else {
+        log::warn!("ShortcutManager not available, cannot unregister Escape");
+    }
+
     let store = app.store("settings").ok();
     let settings = store.as_ref().and_then(|s| s.get("settings"));
     let play_sound = settings
@@ -471,29 +551,6 @@ pub async fn get_recording_state(
             .get_current_file()
             .map(|p| p.to_string_lossy().to_string()),
     })
-}
-
-/// Get current recording mode from settings
-pub fn get_recording_mode_from_settings(app: &AppHandle) -> RecordingMode {
-    let store = app.store("settings");
-    let settings = store.ok().and_then(|store| store.get("settings"));
-
-    let mode_str = settings
-        .as_ref()
-        .and_then(|settings| {
-            settings
-                .as_object()
-                .and_then(|s| s.get("voiceInput"))
-                .and_then(|v| v.as_object())
-                .and_then(|v| v.get("recordingMode"))
-                .and_then(|m| m.as_str())
-        })
-        .unwrap_or("toggle");
-
-    match mode_str {
-        "pushtotalk" => RecordingMode::PushToTalk,
-        _ => RecordingMode::Toggle,
-    }
 }
 
 /// Check if a speech-to-text model is selected and available for use

@@ -16,7 +16,7 @@ pub struct OnboardingSettings {
 pub struct VoiceInputSettings {
     pub shortcut: String,
     pub microphone_device_id: Option<String>,
-    pub recording_mode: String, // "toggle" or "pushtotalk"
+    pub enable_push_to_talk: bool,
     pub push_to_talk_shortcut: String,
 }
 
@@ -89,7 +89,7 @@ impl Default for Settings {
             voice_input: VoiceInputSettings {
                 shortcut: "Alt+Space".to_string(),
                 microphone_device_id: None,
-                recording_mode: "toggle".to_string(),
+                enable_push_to_talk: false,
                 push_to_talk_shortcut: "Alt+R".to_string(),
             },
             transcription: TranscriptionSettings {

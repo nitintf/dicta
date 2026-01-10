@@ -31,10 +31,10 @@ export function ShortcutsPanel() {
         />
 
         <SettingItem
-          title="Voice input activation"
+          title="Voice input activation (Toggle)"
           description={
             settings.shortcuts.globalShortcutsEnabled
-              ? `Shortcut respects your recording mode (${settings.voiceInput.recordingMode === 'pushtotalk' ? 'Push-to-Talk' : 'Toggle'})`
+              ? 'Click once to start recording, click again to stop'
               : 'Global shortcuts are disabled'
           }
           action={
@@ -47,22 +47,24 @@ export function ShortcutsPanel() {
           }
         />
 
-        <SettingItem
-          title="Push-to-Talk shortcut"
-          description={
-            settings.shortcuts.globalShortcutsEnabled
-              ? 'Quick shortcut that always uses Push-to-Talk mode'
-              : 'Global shortcuts are disabled'
-          }
-          action={
-            <ShortcutRecorder
-              value={settings.voiceInput.pushToTalkShortcut}
-              onChange={setPushToTalkShortcut}
-              placeholder="Not set"
-              disabled={!settings.shortcuts.globalShortcutsEnabled}
-            />
-          }
-        />
+        {settings.voiceInput.enablePushToTalk && (
+          <SettingItem
+            title="Push-to-Talk shortcut"
+            description={
+              settings.shortcuts.globalShortcutsEnabled
+                ? 'Hold to record, release to stop'
+                : 'Global shortcuts are disabled'
+            }
+            action={
+              <ShortcutRecorder
+                value={settings.voiceInput.pushToTalkShortcut}
+                onChange={setPushToTalkShortcut}
+                placeholder="Not set"
+                disabled={!settings.shortcuts.globalShortcutsEnabled}
+              />
+            }
+          />
+        )}
 
         <SettingItem
           title="Paste last transcript"

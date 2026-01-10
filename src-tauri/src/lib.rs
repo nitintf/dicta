@@ -24,8 +24,10 @@ use features::models::{
 use features::recordings::{delete_recording, get_all_transcriptions, get_recording_audio_path};
 use features::security::{get_api_key, has_api_key, remove_api_key, store_api_key};
 use features::shortcuts::{
-    disable_global_shortcuts, enable_global_shortcuts, update_paste_shortcut,
-    update_voice_input_shortcut, RecordingShortcutHandler, ShortcutManager,
+    disable_global_shortcuts, enable_global_shortcuts, register_escape_shortcut,
+    register_ptt_shortcut, unregister_escape_shortcut, unregister_ptt_shortcut,
+    update_paste_shortcut, update_ptt_shortcut, update_voice_input_shortcut,
+    RecordingShortcutHandler, ShortcutManager,
 };
 use features::transcription::{get_last_transcript, paste_last_transcript, transcribe_and_process};
 use utils::logger::{log_complete, log_failed, log_lifecycle_event, log_start, log_with_context};
@@ -320,6 +322,11 @@ pub fn run() {
             // Shortcuts management
             update_voice_input_shortcut,
             update_paste_shortcut,
+            register_ptt_shortcut,
+            unregister_ptt_shortcut,
+            update_ptt_shortcut,
+            register_escape_shortcut,
+            unregister_escape_shortcut,
             enable_global_shortcuts,
             disable_global_shortcuts,
             // Transcription utilities

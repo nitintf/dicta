@@ -1,11 +1,4 @@
-import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { Switch } from '@/components/ui/switch'
 import { useAudioDevices } from '@/hooks/use-audio-devices'
 
 import { getLanguageByCode } from '../../data/languages'
@@ -16,7 +9,7 @@ import { ThemeSelector } from '../theme-selector'
 import { SettingsPanel, SettingItem, SettingsSection } from './settings-panel'
 
 export function GeneralPanel() {
-  const { settings, setRecordingMode } = useSettingsStore()
+  const { settings, setEnablePushToTalk } = useSettingsStore()
   const { devices } = useAudioDevices()
 
   const selectedLanguage = getLanguageByCode(settings.transcription.language)
@@ -36,11 +29,6 @@ export function GeneralPanel() {
       ? `Currently using: Auto-detect (${defaultDevice.label})`
       : 'Select your preferred microphone device'
 
-  const recordingModeLabel =
-    settings.voiceInput.recordingMode === 'pushtotalk'
-      ? 'Push-to-Talk'
-      : 'Toggle'
-
   return (
     <SettingsPanel
       title="General"
@@ -54,35 +42,17 @@ export function GeneralPanel() {
         />
 
         <SettingItem
-          title="Recording mode"
+          title="Enable Push-to-Talk"
           description={
-            settings.voiceInput.recordingMode === 'pushtotalk'
+            settings.voiceInput.enablePushToTalk
               ? 'Hold shortcut to record, release to stop'
-              : 'Click shortcut to start/stop recording'
+              : 'Toggle mode is always active - click shortcut to start/stop'
           }
           action={
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="w-[180px] justify-between">
-                  {recordingModeLabel}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuRadioGroup
-                  value={settings.voiceInput.recordingMode}
-                  onValueChange={value =>
-                    setRecordingMode(value as 'toggle' | 'pushtotalk')
-                  }
-                >
-                  <DropdownMenuRadioItem value="toggle">
-                    Toggle Mode
-                  </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="pushtotalk">
-                    Push-to-Talk
-                  </DropdownMenuRadioItem>
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Switch
+              checked={settings.voiceInput.enablePushToTalk}
+              onCheckedChange={setEnablePushToTalk}
+            />
           }
         />
 

@@ -1,6 +1,6 @@
 use crate::features::audio::{
-    cancel_recording, start_recording, stop_recording, AudioRecorder, RecordingMode,
-    RecordingState, RecordingStateManager,
+    cancel_recording, start_recording, stop_recording, AudioRecorder, RecordingState,
+    RecordingStateManager,
 };
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -112,22 +112,6 @@ impl RecordingShortcutHandler {
         }
 
         Ok(())
-    }
-
-    /// Handle recording shortcut based on mode from settings
-    pub async fn handle_recording_shortcut(
-        &self,
-        app: &AppHandle,
-        event: &ShortcutEvent,
-    ) -> Result<(), String> {
-        use crate::features::audio::get_recording_mode_from_settings;
-
-        let mode = get_recording_mode_from_settings(app);
-
-        match mode {
-            RecordingMode::Toggle => self.handle_toggle_mode(app, event).await,
-            RecordingMode::PushToTalk => self.handle_ptt_mode(app, event).await,
-        }
     }
 
     /// Handle escape key (cancel recording)

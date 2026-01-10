@@ -32,9 +32,10 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
           shortcut: storedSettings?.voiceInput?.shortcut ?? 'Alt+Space',
           microphoneDeviceId:
             storedSettings?.voiceInput?.microphoneDeviceId ?? null,
-          recordingMode: storedSettings?.voiceInput?.recordingMode ?? 'toggle',
+          enablePushToTalk:
+            storedSettings?.voiceInput?.enablePushToTalk ?? false,
           pushToTalkShortcut:
-            storedSettings?.voiceInput?.pushToTalkShortcut ?? '',
+            storedSettings?.voiceInput?.pushToTalkShortcut ?? 'Alt+R',
         },
         transcription: {
           language: storedSettings?.transcription?.language ?? 'en',
@@ -370,21 +371,30 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     }
   },
 
-  setRecordingMode: async (mode: 'toggle' | 'pushtotalk') => {
+  setEnablePushToTalk: async (enabled: boolean) => {
     try {
       const store = await getTauriStore()
       const newSettings = {
         ...get().settings,
         voiceInput: {
           ...get().settings.voiceInput,
-          recordingMode: mode,
+          enablePushToTalk: enabled,
         },
       }
       await store.set('settings', newSettings)
       await store.save()
       set({ settings: newSettings })
+
+      // Update PTT shortcut registration
+      if (enabled) {
+        await invoke('register_ptt_shortcut', {
+          shortcutStr: newSettings.voiceInput.pushToTalkShortcut,
+        })
+      } else {
+        await invoke('unregister_ptt_shortcut')
+      }
     } catch (error) {
-      console.error('Error saving recording mode:', error)
+      console.error('Error toggling push-to-talk:', error)
     }
   },
 
@@ -402,8 +412,10 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       await store.save()
       set({ settings: newSettings })
 
-      // Note: The shortcut will be registered on app restart or when shortcuts are re-enabled
-      // The backend doesn't have a dynamic update command for PTT shortcut yet
+      // If PTT is enabled, update the shortcut registration
+      if (newSettings.voiceInput.enablePushToTalk) {
+        await invoke('update_ptt_shortcut', { shortcutStr: shortcut })
+      }
     } catch (error) {
       console.error('Error saving push-to-talk shortcut:', error)
     }

@@ -20,6 +20,6 @@ export interface SettingsStore {
   setAiProcessingEnabled: (enabled: boolean) => Promise<void>
   setSpeechToTextModel: (modelId: string | null) => Promise<void>
   setPostProcessingModel: (modelId: string | null) => Promise<void>
-  setRecordingMode: (mode: 'toggle' | 'pushtotalk') => Promise<void>
+  setEnablePushToTalk: (enabled: boolean) => Promise<void>
   setPushToTalkShortcut: (shortcut: string) => Promise<void>
 }

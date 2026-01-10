@@ -3,21 +3,6 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use ts_rs::TS;
 
-/// Recording mode: Toggle (click to start/stop) or PushToTalk (hold to record)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../src/features/voice-input/types/generated/")]
-#[serde(rename_all = "lowercase")]
-pub enum RecordingMode {
-    Toggle,
-    PushToTalk,
-}
-
-impl Default for RecordingMode {
-    fn default() -> Self {
-        Self::Toggle
-    }
-}
-
 /// Recording state machine
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../src/features/voice-input/types/generated/")]
@@ -60,7 +45,6 @@ impl RecordingState {
 /// Global recording state
 pub struct RecordingStateManager {
     state: Arc<Mutex<RecordingState>>,
-    mode: Arc<Mutex<RecordingMode>>,
     current_file: Arc<Mutex<Option<PathBuf>>>,
     error_message: Arc<Mutex<Option<String>>>,
     recording_device: Arc<Mutex<Option<String>>>,
@@ -71,7 +55,6 @@ impl RecordingStateManager {
     pub fn new() -> Self {
         Self {
             state: Arc::new(Mutex::new(RecordingState::Idle)),
-            mode: Arc::new(Mutex::new(RecordingMode::Toggle)),
             current_file: Arc::new(Mutex::new(None)),
             error_message: Arc::new(Mutex::new(None)),
             recording_device: Arc::new(Mutex::new(None)),
@@ -102,16 +85,6 @@ impl RecordingStateManager {
     /// Force set state (bypass validation - use with caution)
     pub fn force_set_state(&self, new_state: RecordingState) {
         *self.state.lock().unwrap() = new_state;
-    }
-
-    /// Get current mode
-    pub fn get_mode(&self) -> RecordingMode {
-        *self.mode.lock().unwrap()
-    }
-
-    /// Set recording mode
-    pub fn set_mode(&self, new_mode: RecordingMode) {
-        *self.mode.lock().unwrap() = new_mode;
     }
 
     /// Set current recording file
@@ -199,7 +172,6 @@ mod tests {
         let manager = RecordingStateManager::new();
 
         assert_eq!(manager.get_state(), RecordingState::Idle);
-        assert_eq!(manager.get_mode(), RecordingMode::Toggle);
 
         // Test valid transition
         let result = manager.set_state(RecordingState::Starting);

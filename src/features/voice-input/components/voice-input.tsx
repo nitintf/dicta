@@ -15,13 +15,9 @@ export const VoiceInput = () => {
   const isTranscribing = recording.state === 'transcribing'
   const isProcessing = recording.state === 'stopping' || isTranscribing
 
-  // Listen for audio levels from backend
   useTauriEvent<number>('audio-level', event => {
     setAudioLevel(event.payload)
   })
-
-  // Note: Escape key is now handled globally by the backend shortcut system
-  // See: src-tauri/src/features/shortcuts/manager.rs and recording_handler.rs
 
   return (
     <VoiceInputContainer>
