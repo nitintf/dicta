@@ -21,6 +21,8 @@
     "shell:allow-open",
     "core:event:allow-emit",
     "core:event:allow-listen",
-    "notification:default"
+    "notification:default",
+    "macos-permissions:allow-check-accessibility-permission",
+    "macos-permissions:allow-request-accessibility-permission"
   ]
 }

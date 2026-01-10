@@ -5,7 +5,6 @@ import {
   checkAllPermissions,
   requestMicPermission,
   requestAccessibility,
-  requestScreenCapture,
   areRequiredPermissionsGranted,
   type PermissionsState,
 } from '@/lib/permissions'
@@ -14,7 +13,6 @@ export function usePermissions() {
   const [permissions, setPermissions] = useState<PermissionsState>({
     microphone: 'unknown',
     accessibility: 'unknown',
-    screenCapture: 'unknown',
   })
   const [loading, setLoading] = useState(true)
   const setOnboardingPermissions = useOnboardingStore(
@@ -43,12 +41,6 @@ export function usePermissions() {
     return granted
   }
 
-  const requestScreenCapturePermission = async () => {
-    const granted = await requestScreenCapture()
-    await checkPermissions()
-    return granted
-  }
-
   useEffect(() => {
     async function checkPermissionsFn() {
       await checkPermissions()
@@ -62,7 +54,6 @@ export function usePermissions() {
     allGranted: areRequiredPermissionsGranted(permissions),
     requestMicrophone,
     requestAccessibilityPermission,
-    requestScreenCapturePermission,
     checkPermissions,
   }
 }

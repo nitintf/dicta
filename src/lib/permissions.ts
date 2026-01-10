@@ -3,8 +3,6 @@ import {
   checkMicrophonePermission,
   requestAccessibilityPermission,
   checkAccessibilityPermission,
-  requestScreenRecordingPermission,
-  checkScreenRecordingPermission,
 } from 'tauri-plugin-macos-permissions-api'
 
 export type PermissionStatus = 'granted' | 'denied' | 'unknown'
@@ -20,38 +18,47 @@ export interface Permission {
 export interface PermissionsState {
   microphone: PermissionStatus
   accessibility: PermissionStatus
-  screenCapture: PermissionStatus
 }
 
 export async function checkAllPermissions(): Promise<PermissionsState> {
   try {
-    const [microphone, accessibility, screenCapture] = await Promise.all([
+    const [microphone, accessibility] = await Promise.all([
       checkMicrophonePermission(),
       checkAccessibilityPermission(),
-      checkScreenRecordingPermission(),
     ])
 
     // Log permission status for debugging
     console.log('Permission check results:', {
       microphone,
       accessibility,
-      screenCapture,
     })
+
+    // For accessibility, check multiple times as the plugin can be unreliable
+    // Try checking again after a short delay if first check fails
+    let accessibilityStatus: boolean = accessibility
+    if (!accessibility) {
+      // Wait a bit and check again - sometimes the permission check is delayed
+      await new Promise(resolve => setTimeout(resolve, 300))
+      try {
+        accessibilityStatus = await checkAccessibilityPermission()
+        console.log('Accessibility recheck result:', accessibilityStatus)
+      } catch (e) {
+        console.log('Accessibility recheck error:', e)
+      }
+    }
 
     // For accessibility, if check returns false, it might still be granted
     // but the plugin might not detect it correctly. We'll treat it as 'unknown'
     // so the UI can show a "Check Again" option
     return {
       microphone: microphone ? 'granted' : 'denied',
-      accessibility: accessibility ? 'granted' : 'unknown',
-      screenCapture: screenCapture ? 'granted' : 'denied',
+      accessibility: accessibilityStatus ? 'granted' : 'unknown',
     }
   } catch (error) {
     console.error('Error checking permissions:', error)
     return {
       microphone: 'unknown',
       accessibility: 'unknown',
-      screenCapture: 'unknown',
     }
   }
 }
@@ -112,16 +119,6 @@ export async function requestAccessibility(): Promise<boolean> {
     } catch {
       return false
     }
-  }
-}
-
-export async function requestScreenCapture(): Promise<boolean> {
-  try {
-    await requestScreenRecordingPermission()
-    return await checkScreenRecordingPermission()
-  } catch (error) {
-    console.error('Error requesting screen capture permission:', error)
-    return false
   }
 }
 

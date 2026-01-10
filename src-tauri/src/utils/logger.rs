@@ -1,41 +1,5 @@
 use std::collections::HashMap;
 
-/// Structured logging utilities for VoiceTypr debugging
-///
-/// This module provides consistent logging patterns across the application
-/// to help diagnose production issues, performance bottlenecks, and silent failures.
-///
-/// ## Performance Strategy
-///
-/// This module uses a **selective performance optimization** approach:
-///
-/// ### Production Logging (What Users See)
-/// - **Major operations**: ALWAYS logged (recording, transcription, errors)
-/// - **Hot paths**: Sampled at 1% or disabled
-/// - **Debug details**: Only when explicitly enabled via log level
-///
-/// ### Performance Optimizations
-/// 1. **Log level checking**: Skip expensive ops if logs filtered out
-/// 2. **Sampling**: Hot paths use `log_context_sampled!` (1% sample rate)
-/// 3. **Lazy evaluation**: Only format strings if actually logging
-///
-/// ### Usage Guidelines
-///
-/// For different code paths:
-/// - **User operations** (record/transcribe): Use normal logging
-/// - **Hot paths** (audio processing): Use `log_simple!` or sampling
-/// - **Error paths**: ALWAYS log with full context
-/// - **Performance tests**: Use specialized test macros
-
-// NOTE: LogEvent enums and complex structures have been removed
-// We now use simple logging functions (log_start, log_complete, log_failed, log_with_context)
-// for better maintainability and reduced complexity
-
-// REMOVED: Function wrapper logging - use explicit log_start/log_complete for clarity
-// This avoids hidden overhead and makes logging intentions explicit at call sites
-
-// REMOVED: Use log_failed() with log_with_context() for error logging
-
 /// Log performance metrics for operations
 pub fn log_performance(operation: &str, duration_ms: u64, metadata: Option<&str>) {
     let metadata_str = metadata.unwrap_or("");
@@ -46,10 +10,6 @@ pub fn log_performance(operation: &str, duration_ms: u64, metadata: Option<&str>
         metadata_str
     );
 }
-
-// Removed: log_performance_detailed - simplified to basic log_performance
-
-// REMOVED: HashMap-based wrappers - use log_start() with log_with_context() directly
 
 /// Log audio metrics in a structured way
 pub fn log_audio_metrics(

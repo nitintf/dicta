@@ -71,7 +71,7 @@ fn setup_logging() -> tauri_plugin_log::Builder {
                     && !target.contains("hound")
             }),
             Target::new(TargetKind::LogDir {
-                file_name: Some(format!("voicetypr-{}", today)),
+                file_name: Some(format!("dicta-{}", today)),
             })
             .filter(|metadata| {
                 // Filter out noisy logs from file as well
@@ -113,7 +113,6 @@ pub fn run() {
         .manage(audio_recorder)
         .manage(recording_state_manager)
         .manage(recording_shortcut_handler)
-        // .plugin(setup_logging().build())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_os::init())
@@ -129,6 +128,13 @@ pub fn run() {
                 let _ = win.set_focus();
             }
         }));
+
+    // Only initialize logging plugin if devtools is not enabled
+    // Devtools plugin initializes logging automatically, so we skip it in debug mode
+    #[cfg(not(debug_assertions))]
+    {
+        builder = builder.plugin(setup_logging().build());
+    }
 
     #[cfg(target_os = "macos")]
     {

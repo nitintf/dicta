@@ -20,7 +20,6 @@ export function AccessibilityStep() {
 
   const isGranted = effectivePermissions.accessibility === 'granted'
   const isDenied = effectivePermissions.accessibility === 'denied'
-  const isUnknown = effectivePermissions.accessibility === 'unknown'
 
   useEffect(() => {
     if (!storedPermissions) {
@@ -39,16 +38,16 @@ export function AccessibilityStep() {
 
   const handleRequest = async () => {
     const granted = await requestAccessibilityPermission()
-    // Recheck permissions after request
     await checkPermissions()
     if (granted) {
       markStepComplete('accessibility')
+      completeCurrentStepAndGoNext()
     }
   }
 
-  const handleCheckAgain = async () => {
-    // Force a fresh permission check
-    await checkPermissions()
+  const handleSkip = () => {
+    markStepComplete('accessibility')
+    completeCurrentStepAndGoNext()
   }
 
   const handleContinue = () => {
@@ -133,37 +132,26 @@ export function AccessibilityStep() {
                   />
                   <div className="flex-1">
                     <p className="font-medium text-amber-800 mb-1 text-sm">
-                      {isUnknown
-                        ? 'Checking accessibility access...'
-                        : "You don't have access"}
+                      Accessibility access required
                     </p>
                     <p className="text-xs text-amber-700">
                       {isDenied
                         ? 'Please enable accessibility access in System Settings → Privacy & Security → Accessibility'
-                        : isUnknown
-                          ? 'If you already granted access, click "Check Again" below. Otherwise, click "Access" to open System Settings.'
-                          : 'Click the button below to grant accessibility access'}
+                        : 'Click "Grant Access" to open System Settings and enable accessibility permissions.'}
                     </p>
                   </div>
                 </div>
               </div>
               <div className="flex gap-2">
-                {isUnknown && (
-                  <Button
-                    onClick={handleCheckAgain}
-                    variant="outline"
-                    className="flex-1 h-10 text-sm"
-                  >
-                    Check Again
-                  </Button>
-                )}
+                <Button onClick={handleRequest} className="flex-1 h-10 text-sm">
+                  Grant Access
+                </Button>
                 <Button
-                  onClick={handleRequest}
-                  className={
-                    isUnknown ? 'flex-1 h-10 text-sm' : 'w-full h-10 text-sm'
-                  }
+                  onClick={handleSkip}
+                  variant="outline"
+                  className="flex-1 h-10 text-sm"
                 >
-                  {isUnknown ? 'Open System Settings' : 'Access'}
+                  Skip
                 </Button>
               </div>
             </div>
