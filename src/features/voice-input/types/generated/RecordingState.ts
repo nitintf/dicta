@@ -3,10 +3,4 @@
 /**
  * Recording state machine
  */
-export type RecordingState =
-  | 'idle'
-  | 'starting'
-  | 'recording'
-  | 'stopping'
-  | 'transcribing'
-  | 'error'
+export type RecordingState = "idle" | "starting" | "recording" | "stopping" | "transcribing" | "error";

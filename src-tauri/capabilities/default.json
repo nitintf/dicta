@@ -20,6 +20,7 @@
     "clipboard-manager:allow-read-text",
     "shell:allow-open",
     "core:event:allow-emit",
-    "core:event:allow-listen"
+    "core:event:allow-listen",
+    "notification:default"
   ]
 }

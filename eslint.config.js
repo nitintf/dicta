@@ -6,7 +6,7 @@ import importPlugin from 'eslint-plugin-import'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores(['dist', '**/types/generated/**']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

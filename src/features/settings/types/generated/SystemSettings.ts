@@ -3,8 +3,4 @@
 /**
  * System settings
  */
-export type SystemSettings = {
-  showInDock: boolean
-  saveAudioRecordings: boolean
-  playSoundOnRecording: boolean
-}
+export type SystemSettings = { showInDock: boolean, saveAudioRecordings: boolean, playSoundOnRecording: boolean, };

@@ -57,7 +57,10 @@
     "icon": ["icons/icon.png", "icons/icon.icns", "icons/icon.ico"],
     "resources": ["../public/main.mp3", "../public/cancel.wav"],
     "macOS": {
-      "minimumSystemVersion": "10.15"
+      "minimumSystemVersion": "13.0",
+      "entitlements": "./entitlements.plist",
+      "hardenedRuntime": true,
+      "signingIdentity": "-"
     }
   }
 }
