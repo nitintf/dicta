@@ -34,6 +34,7 @@ function App() {
           position="bottom-right"
           gap={8}
           closeButton
+          expand={false}
           icons={{
             success: <CircleCheck className="size-[18px] text-emerald-500" />,
             error: <CircleX className="size-[18px] text-red-500" />,

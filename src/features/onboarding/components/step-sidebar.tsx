@@ -75,7 +75,7 @@ export function StepSidebar({
                     </div>
 
                     {showLine && (
-                      <div className="absolute top-8 left-1/2 -translate-x-1/2 w-0.5 h-13 bg-gray-500/30">
+                      <div className="absolute top-[2.4rem] left-1/2 -translate-x-1/2 w-0.5 h-13 bg-gray-500/30">
                         <motion.div
                           className="w-full h-full origin-top bg-primary"
                           initial={{ scaleY: 0 }}

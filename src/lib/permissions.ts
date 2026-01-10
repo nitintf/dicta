@@ -38,9 +38,12 @@ export async function checkAllPermissions(): Promise<PermissionsState> {
       screenCapture,
     })
 
+    // For accessibility, if check returns false, it might still be granted
+    // but the plugin might not detect it correctly. We'll treat it as 'unknown'
+    // so the UI can show a "Check Again" option
     return {
       microphone: microphone ? 'granted' : 'denied',
-      accessibility: accessibility ? 'granted' : 'denied',
+      accessibility: accessibility ? 'granted' : 'unknown',
       screenCapture: screenCapture ? 'granted' : 'denied',
     }
   } catch (error) {
@@ -69,17 +72,27 @@ export async function requestMicPermission(): Promise<boolean> {
 export async function requestAccessibility(): Promise<boolean> {
   try {
     console.log('Requesting accessibility permission...')
+
+    // First check if permission is already granted
+    const alreadyGranted = await checkAccessibilityPermission()
+    if (alreadyGranted) {
+      console.log('Accessibility permission already granted')
+      return true
+    }
+
+    // Request permission (this will open System Settings if not granted)
     await requestAccessibilityPermission()
 
-    // Wait a bit for the system to update the permission status
-    await new Promise(resolve => setTimeout(resolve, 500))
+    // Wait longer for the system to update the permission status
+    // macOS can take a moment to update the permission database
+    await new Promise(resolve => setTimeout(resolve, 1000))
 
     const hasPermission = await checkAccessibilityPermission()
     console.log('Accessibility permission status after request:', hasPermission)
 
     // If still not granted, wait a bit more and check again (user might be granting it)
     if (!hasPermission) {
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      await new Promise(resolve => setTimeout(resolve, 2000))
       const recheck = await checkAccessibilityPermission()
       console.log('Accessibility permission status after recheck:', recheck)
       return recheck
@@ -88,7 +101,17 @@ export async function requestAccessibility(): Promise<boolean> {
     return hasPermission
   } catch (error) {
     console.error('Error requesting accessibility permission:', error)
-    return false
+    // Even if there's an error, check one more time - permission might have been granted
+    try {
+      const finalCheck = await checkAccessibilityPermission()
+      console.log(
+        'Final accessibility permission check after error:',
+        finalCheck
+      )
+      return finalCheck
+    } catch {
+      return false
+    }
   }
 }
 
