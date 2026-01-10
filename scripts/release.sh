@@ -73,7 +73,7 @@ cleanup() {
     if [[ $exit_code -ne 0 ]] && [[ "$VERSION_FILES_MODIFIED" == true ]] && [[ -n "$CURRENT_VERSION" ]]; then
         log_warn "Build failed! Reverting version changes..."
         cd "$REPO_ROOT"
-        git checkout -- package.json src-tauri/Cargo.toml CHANGELOG.md 2>/dev/null || true
+        git checkout -- package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json CHANGELOG.md 2>/dev/null || true
         log_warn "Version changes have been reverted. You can try again."
     fi
 
@@ -256,9 +256,14 @@ bump_version() {
         sed -i "s/^version = \".*\"/version = \"${new_version}\"/" "$REPO_ROOT/src-tauri/Cargo.toml"
     fi
 
+    # Update tauri.conf.json
+    log_step "Updating tauri.conf.json..."
+    cd "$REPO_ROOT"
+    jq --arg version "$new_version" '.version = $version' src-tauri/tauri.conf.json > src-tauri/tauri.conf.json.tmp
+    mv src-tauri/tauri.conf.json.tmp src-tauri/tauri.conf.json
+
     # Generate changelog
     log_step "Generating changelog..."
-    cd "$REPO_ROOT"
     npx conventional-changelog -p angular -i CHANGELOG.md -s
 
     # Mark that we've modified version files (for cleanup on failure)
